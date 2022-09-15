@@ -50,6 +50,7 @@ typedef enum __attribute__ ((__packed__))
   FLOW_VARIANT_L2,
   FLOW_VARIANT_L2_IP4,
   FLOW_VARIANT_L2_IP6,
+  FLOW_VARIANT_SRH_IP6,
   FLOW_N_VARIANTS,
 } flowprobe_variant_t;
 
@@ -93,6 +94,13 @@ typedef struct __attribute__ ((aligned (8))) {
   u16 dst_port;
   flowprobe_variant_t which;
   flowprobe_direction_t direction;
+
+  ip46_address_t srh_src_address;
+  ip46_address_t srh_dst_address;
+  u8 srh_segments_left;
+  u8 srh_flags;
+  u16 srh_tag;
+  ip46_address_t srh_segment_list[5];
 } flowprobe_key_t;
 /* *INDENT-ON* */
 
@@ -171,6 +179,7 @@ extern vlib_node_registration_t flowprobe_walker_node;
 void flowprobe_flush_callback_ip4 (void);
 void flowprobe_flush_callback_ip6 (void);
 void flowprobe_flush_callback_l2 (void);
+void flowprobe_flush_callback_srh_ip6(void);
 u8 *format_flowprobe_entry (u8 * s, va_list * args);
 
 #endif

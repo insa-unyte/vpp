@@ -423,7 +423,18 @@ _(natQuotaExceededEvent, 466, u32)                                      \
 _(maxSessionEntries, 471, u32)                                          \
 _(maxBIBEntries, 472, u32)                                              \
 _(maxEntriesPerUser, 473, u32)                                          \
-_(maxFragmentsPendingReassembly, 475, u32)
+_(maxFragmentsPendingReassembly, 475, u32)                              \
+_(srhFlagsIPv6, 500, u8)                                                \
+_(srhTagIPv6, 501, u16)                                                 \
+_(srhSegmentIPv6, 502, ip6_address_t)                                   \
+_(srhActiveSegmentIPv6, 503, ip6_address_t)                             \
+_(srhSegmentIPv6BasicList, 504, basicList)                              \
+_(srhSegmentIPv6ListSection, 505, octetArray)                           \
+_(srhSegmentIPv6sLeft, 506, u8)                                         \
+_(srhSectionIPv6, 507, octetArray)                                      \
+_(srhActiveSegmentIPv6Type, 508, u8)                                    \
+_(srhSegmentLocatorLength, 509, u8)                                     \
+_(srhSegmentEndpointBehavior, 510, u16)                                       
 
 typedef enum
 {
