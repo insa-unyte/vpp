@@ -1330,6 +1330,8 @@ encaps_processing_v6 (vlib_node_runtime_t *node, vlib_buffer_t *b0,
     (flow_label & 0x0000ffff));
   if (policy_type == SR_POLICY_TYPE_TEF)
     srv6_tef_behavior (node, b0, ip0);
+	clib_warning("IP0: %U -> %U", format_ip6_address, &ip0->src_address, format_ip6_address, &ip0->dst_address);
+	clib_warning("IP0_encap: %U -> %U", format_ip6_address, &ip0_encap->src_address, format_ip6_address, &ip0_encap->dst_address);
 }
 
 /**
