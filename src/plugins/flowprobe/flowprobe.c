@@ -158,14 +158,18 @@ flowprobe_template_ip6_fields (ipfix_field_specifier_t * f)
 static inline ipfix_field_specifier_t *
 flowprobe_template_ip6_srh_fields (ipfix_field_specifier_t * f)
 {
-#define flowprobe_template_ip6_srh_field_count() 10
+#define flowprobe_template_ip6_srh_field_count() 11
   /* srh sourceIpv6Address, TLV type 27, 16 octets */
   f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
 				      sourceIPv6Address, 16);
   f++;
-  /* srh destinationIPv6Address, TLV type 28, 16 octets */
+  /* srh srhActiveSegmentIPv6, TLV type 28, 16 octets */
   f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
-				      destinationIPv6Address, 16);
+				      srhActiveSegmentIPv6, 16);
+  f++;
+  /* srh srhSegmentEndpointBehavior, TLV type 28, 2 octets */
+  f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
+				      srhSegmentEndpointBehavior, 2);
   f++;
   /* srhSegmentIPv6sLeft, TLV type 506, 1 octets */
   f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
@@ -181,7 +185,7 @@ flowprobe_template_ip6_srh_fields (ipfix_field_specifier_t * f)
   f++;
   /* srhSegmentIPv6BasicList, TLV type 504, N octets */
   f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
-				      srhSegmentIPv6BasicList, 16 * 5); // limit 5 IPv6
+				      srhSegmentIPv6BasicList, 16 * FLOW_SRH_MAX_SID_LIST); // limit 16 IPv6
   f++;
 
   /* flow sourceIpv6Address, TLV type 27, 16 octets */
