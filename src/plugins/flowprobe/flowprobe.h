@@ -67,6 +67,7 @@ STATIC_ASSERT (sizeof (flowprobe_variant_t) == 1,
 	       "revisit padding in flowprobe_key_t");
 
 #define FLOW_MAXIMUM_EXPORT_ENTRIES	(1024)
+#define FLOW_SRH_MAX_SID_LIST (8)
 
 typedef struct
 {
@@ -100,7 +101,7 @@ typedef struct __attribute__ ((aligned (8))) {
   u8 srh_segments_left;
   u8 srh_flags;
   u16 srh_tag;
-  ip46_address_t srh_segment_list[5];
+  ip46_address_t srh_segment_list[FLOW_SRH_MAX_SID_LIST];
 } flowprobe_key_t;
 /* *INDENT-ON* */
 
@@ -120,6 +121,7 @@ typedef struct
   f64 last_updated;
   f64 last_exported;
   u32 passive_timer_handle;
+  u16 srh_endpoint_behavior;
   union
   {
     struct
