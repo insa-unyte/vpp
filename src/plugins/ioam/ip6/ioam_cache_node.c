@@ -97,7 +97,7 @@ ip6_ioam_cache_node_fn (vlib_main_t * vm,
   u32 n_left_from, *from, *to_next;
   cache_next_t next_index;
   u32 recorded = 0;
-
+	clib_warning("CACHE!");
   from = vlib_frame_vector_args (frame);
   n_left_from = frame->n_vectors;
   next_index = node->cached_next_index;

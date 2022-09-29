@@ -60,6 +60,7 @@ trace_profile_create (trace_profile * profile, u8 trace_type, u8 num_elts,
 
   if (!trace_type || !num_elts || !(node_id))
     {
+      clib_warning("NOt valid %u, %u, %u", trace_type, num_elts, node_id);
       return (-1);
     }
   if (profile && !profile->valid)
@@ -112,7 +113,7 @@ set_trace_profile_command_fn (vlib_main_t * vm,
 			      unformat_input_t * input,
 			      vlib_cli_command_t * cmd)
 {
-  u8 trace_type = 0;
+  u8 trace_type = 31;
   u8 num_elts = 0;
   u32 node_id = 0;
   u32 app_data = 0;
@@ -120,6 +121,8 @@ set_trace_profile_command_fn (vlib_main_t * vm,
   trace_profile *profile = NULL;
   while (unformat_check_input (input) != UNFORMAT_END_OF_INPUT)
     {
+      // clib_warning("-> %x | %d | %d | %x | %x", trace_type, num_elts, trace_tsp, node_id, app_data);
+      // clib_warning("2parsed -> %d | %d | %d | %d | %d", trace_type, num_elts, trace_tsp, node_id, app_data);
       if (unformat (input, "trace-type 0x%x", &trace_type));
       else if (unformat (input, "trace-elts %d", &num_elts));
       else if (unformat (input, "trace-tsp %d", &trace_tsp));
@@ -128,11 +131,14 @@ set_trace_profile_command_fn (vlib_main_t * vm,
       else
 	break;
     }
+  // clib_warning("-> %x | %d | %d | %x | %x", trace_type, num_elts, trace_tsp, node_id, app_data);
+  clib_warning("parsed -> %d | %d | %d | %d | %d", trace_type, num_elts, trace_tsp, node_id, app_data);
   profile = trace_profile_find ();
   if (profile)
     {
-      trace_profile_create (profile, trace_type, num_elts, trace_tsp,
+      trace_profile_create (profile, 31, num_elts, trace_tsp,
 			    node_id, app_data);
+          clib_warning("Creting profile %u", profile->trace_type);
     }
   return 0;
 }

@@ -242,6 +242,7 @@ VLIB_NODE_FN (ip6_add_hop_by_hop_node) (vlib_main_t * vm,
 					vlib_node_runtime_t * node,
 					vlib_frame_t * frame)
 {
+  // clib_warning("--> ip6_add_hop_by_hop_node");
   ip6_hop_by_hop_ioam_main_t *hm = &ip6_hop_by_hop_ioam_main;
   u32 n_left_from, *from, *to_next;
   ip_lookup_next_t next_index;
@@ -256,6 +257,7 @@ VLIB_NODE_FN (ip6_add_hop_by_hop_node) (vlib_main_t * vm,
   while (n_left_from > 0)
     {
       u32 n_left_to_next;
+      // clib_warning("Warning2!");
 
       vlib_get_next_frame (vm, node, next_index, to_next, n_left_to_next);
       while (n_left_from >= 4 && n_left_to_next >= 2)
@@ -369,6 +371,7 @@ VLIB_NODE_FN (ip6_add_hop_by_hop_node) (vlib_main_t * vm,
 	}
       while (n_left_from > 0 && n_left_to_next > 0)
 	{
+    // clib_warning("Warning1!");
 	  u32 bi0;
 	  vlib_buffer_t *b0;
 	  u32 next0;
@@ -1077,7 +1080,7 @@ ip6_hop_by_hop_ioam_init (vlib_main_t * vm)
 {
   clib_error_t *error;
   ip6_hop_by_hop_ioam_main_t *hm = &ip6_hop_by_hop_ioam_main;
-
+  clib_warning("INIT ip6_hop_by_hop");
   if ((error = vlib_call_init_function (vm, ip_main_init)))
     return (error);
 
@@ -1145,7 +1148,7 @@ ip6_ioam_set_rewrite (u8 ** rwp, int has_trace_option,
   u8 *current;
   u8 *trace_data_size = NULL;
   u8 *pot_data_size = NULL;
-
+  clib_warning("has_trace_option---> %u - %u", has_trace_option, hm->options_size[HBH_OPTION_TYPE_IOAM_TRACE_DATA_LIST]);
   vec_free (*rwp);
 
   if (has_trace_option == 0 && has_pot_option == 0)
@@ -1346,7 +1349,7 @@ ip6_set_ioam_rewrite_command_fn (vlib_main_t * vm,
 	break;
     }
 
-
+  clib_warning("has_trace_option %u", has_trace_option);
   rv = ip6_ioam_enable (has_trace_option, has_pot_option,
 			has_seqno_option, has_analyse_option);
 

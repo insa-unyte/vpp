@@ -1131,6 +1131,8 @@ ip6_tcp_udp_icmp_compute_checksum (vlib_main_t * vm, vlib_buffer_t * p0,
       ip6_hop_by_hop_ext_t *ext_hdr =
 	(ip6_hop_by_hop_ext_t *) data_this_buffer;
 
+		// clib_warning("NExt header: %d", ext_hdr->next_hdr);
+
       /* validate really icmp6 next */
       ASSERT ((ext_hdr->next_hdr == IP_PROTOCOL_ICMP6)
 	      || (ext_hdr->next_hdr == IP_PROTOCOL_UDP));
@@ -2609,14 +2611,19 @@ VLIB_NODE_FN (ip6_hop_by_hop_node) (vlib_main_t * vm,
 	  /* Has the classifier flagged this buffer for special treatment? */
 	  if (PREDICT_FALSE
 	      ((error0 == 0)
-	       && (vnet_buffer (b0)->l2_classify.opaque_index & OI_DECAP)))
+	       && (vnet_buffer (b0)->l2_classify.opaque_index & OI_DECAP))){
+			clib_warning("Is special1");
 	    next0 = hm->next_override;
+		   }
 
 	  /* Has the classifier flagged this buffer for special treatment? */
 	  if (PREDICT_FALSE
 	      ((error1 == 0)
-	       && (vnet_buffer (b1)->l2_classify.opaque_index & OI_DECAP)))
+	       && (vnet_buffer (b1)->l2_classify.opaque_index & OI_DECAP))){
+			clib_warning("Is special2");
 	    next1 = hm->next_override;
+
+		   }
 
 	  if (PREDICT_FALSE ((node->flags & VLIB_NODE_FLAG_TRACE)))
 	    {
@@ -2712,8 +2719,12 @@ VLIB_NODE_FN (ip6_hop_by_hop_node) (vlib_main_t * vm,
 	  /* Has the classifier flagged this buffer for special treatment? */
 	  if (PREDICT_FALSE
 	      ((error0 == 0)
-	       && (vnet_buffer (b0)->l2_classify.opaque_index & OI_DECAP)))
+	       && (vnet_buffer (b0)->l2_classify.opaque_index & OI_DECAP))){
+			// clib_warning("Is special3");
 	    next0 = hm->next_override;
+	  	next0 = adj0->lookup_next_index;
+		
+		   }
 
 	  if (PREDICT_FALSE (b0->flags & VLIB_BUFFER_IS_TRACED))
 	    {
@@ -2761,7 +2772,9 @@ ip6_hop_by_hop_init (vlib_main_t * vm)
   ip6_hop_by_hop_main_t *hm = &ip6_hop_by_hop_main;
   clib_memset (hm->options, 0, sizeof (hm->options));
   clib_memset (hm->trace, 0, sizeof (hm->trace));
-  hm->next_override = IP6_LOOKUP_NEXT_POP_HOP_BY_HOP;
+  clib_warning("hop-hop init %u", hm->next_override);
+//   hm->next_override = IP6_LOOKUP_NEXT_POP_HOP_BY_HOP;
+  clib_warning("2hop-hop init %u", hm->next_override);
   return (0);
 }
 

@@ -337,6 +337,7 @@ sr_cli_localsid_command_fn (vlib_main_t * vm, unformat_input_t * input,
   char behavior = 0;
   void *ls_plugin_mem = 0;
   int usid_size = 0;
+  bool export_ipfix = false;
 
   int rv;
 
@@ -360,6 +361,8 @@ sr_cli_localsid_command_fn (vlib_main_t * vm, unformat_input_t * input,
 			    &resulting_address))
 	address_set = 1;
       else if (unformat (input, "fib-table %u", &fib_index));
+	  else if (unformat (input, "ipfix"))
+		export_ipfix = true;
       else if (vlan_index == (u32) ~ 0
 	       && unformat (input, "vlan %u", &vlan_index));
       else if (!behavior && unformat (input, "behavior"))

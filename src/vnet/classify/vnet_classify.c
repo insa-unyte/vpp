@@ -2903,6 +2903,7 @@ classify_session_command_fn (vlib_main_t * vm,
     found_opaque:
       ;
     }
+  // clib_warning("NEXT end: %d", hit_next_index);
 
   if (table_index == ~0)
     return clib_error_return (0, "Table index required");
@@ -2994,6 +2995,7 @@ unformat_acl_next_node (unformat_input_t * input, va_list * args)
   if (unformat (input, "ip6-node %U", unformat_vlib_node,
 		cm->vlib_main, &node_index))
     {
+      clib_warning("unformat_acl_next_node %u %u" , ip6_inacl_node.index, node_index);
       next_index = vlib_node_add_next (cm->vlib_main,
 				       ip6_inacl_node.index, node_index);
     }

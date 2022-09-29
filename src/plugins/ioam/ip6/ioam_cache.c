@@ -309,6 +309,7 @@ VLIB_CLI_COMMAND (show_ioam_cache_command, static) =
 static clib_error_t *
 ioam_cache_init (vlib_main_t * vm)
 {
+  clib_warning("CACHEE!");
   vlib_node_t *node;
   ioam_cache_main_t *em = &ioam_cache_main;
   u32 cache_node_index = ioam_cache_node.index;

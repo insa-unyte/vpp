@@ -780,7 +780,7 @@ ip_in_out_acl_inline (vlib_main_t *vm, vlib_node_runtime_t *node,
 			       is_output ? IP_OUTACL_ERROR_CHAIN_HIT :
 					   IP_INACL_ERROR_CHAIN_HIT,
 			       chain_hits);
-
+	// clib_warning("IN_OUT %u", is_output);
   vlib_buffer_enqueue_to_next (vm, node, from, nexts, frame->n_vectors);
   return frame->n_vectors;
 }

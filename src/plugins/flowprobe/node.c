@@ -535,6 +535,7 @@ add_to_flow_record_state (vlib_main_t *vm, vlib_node_runtime_t *node,
     {
       ip6 = (ip6_header_t *) (b->data + l2_hdr_sz);
 
+      // Routing Header for IPv6
       if (ip6->protocol == 43)
       {
 
@@ -563,7 +564,7 @@ add_to_flow_record_state (vlib_main_t *vm, vlib_node_runtime_t *node,
           k.srh_segment_list[i].as_u64[0] = sr0->segments[i].as_u64[0];
           k.srh_segment_list[i].as_u64[1] = sr0->segments[i].as_u64[1];
         }
-
+        // IPv6 encapsulation
         if (sr0->protocol == 41)
         {
           ip6_header_t *client_ip6 = (ip6_header_t *) ((void *)sr0 + sr_len);

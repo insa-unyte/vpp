@@ -177,7 +177,7 @@ ip6_hop_by_hop_ioam_trace_rewrite_handler (u8 * rewrite_string,
   u8 trace_data_size = 0;
   u8 trace_option_elts = 0;
   trace_profile *profile = NULL;
-
+  clib_warning("trace_trace!");
 
   profile = trace_profile_find ();
 
@@ -255,6 +255,7 @@ int
 ip6_hbh_ioam_trace_data_list_handler (vlib_buffer_t * b, ip6_header_t * ip,
 				      ip6_hop_by_hop_option_t * opt)
 {
+  // clib_warning("--> ip6_hbh_ioam_trace_data_list_handler");
   ip6_hop_by_hop_ioam_main_t *hm = &ip6_hop_by_hop_ioam_main;
   u8 elt_index = 0;
   ioam_trace_option_t *trace = (ioam_trace_option_t *) opt;
@@ -319,6 +320,10 @@ ip6_hbh_ioam_trace_data_list_handler (vlib_buffer_t * b, ip6_header_t * ip,
 
 	  time_u64.as_u64 = time_f64 * trace_tsp_mul[profile->trace_tsp];
 	  *elt = clib_host_to_net_u32 (time_u64.as_u32[0]);
+    clib_warning("timestamp: %lu %lu %lu", time_u64.as_u32[0], time_u64.as_u32[1], time_u64.as_u64);
+    clib_warning("timestamp: %u", clib_host_to_net_u32, time_u64.as_u32[0]);
+    clib_warning("timestamp: %u", clib_host_to_net_u64, time_u64.as_u64);
+    clib_warning("timestamp: %x", clib_host_to_net_u32, time_u64.as_u32[0]);
 	  elt++;
 	}
 
@@ -483,7 +488,7 @@ ip6_trace_profile_setup (void)
 
   if (ip6_ioam_trace_get_sizeof_handler (&trace_size) < 0)
     return (-1);
-
+  // clib_warning("HERE->%u", trace_size);
   hm->options_size[HBH_OPTION_TYPE_IOAM_TRACE_DATA_LIST] = trace_size;
 
   return (0);
