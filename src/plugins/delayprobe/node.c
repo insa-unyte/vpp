@@ -159,41 +159,6 @@ static inline u32
 delayprobe_srh_ip6_add (vlib_buffer_t *to_b, delayprobe_entry_t *e, u16 offset)
 {
   u16 start = offset;
-  // TODO: add srh into IPFIX set
-
-  /* srh src address */
-  clib_memcpy_fast (to_b->data + offset, &e->key.srh_src_address,
-		    sizeof (ip6_address_t));
-  offset += sizeof (ip6_address_t);
-
-  /* srh dst address == Active SID */
-  clib_memcpy_fast (to_b->data + offset, &e->key.srh_dst_address,
-		    sizeof (ip6_address_t));
-  offset += sizeof (ip6_address_t);
-
-  /* Active SID behavior */
-  u16 active_sid_behavior = clib_host_to_net_u16 (e->srh_endpoint_behavior);
-  clib_memcpy_fast (to_b->data + offset, &active_sid_behavior, sizeof (u16));
-  offset += sizeof (u16);
-
-  /* srh segments left */
-  clib_memcpy_fast (to_b->data + offset, &e->key.srh_segments_left,
-		    sizeof (u8));
-  offset += sizeof (u8);
-
-  /* srh flags */
-  u8 flags = htons (e->key.srh_flags);
-  clib_memcpy_fast (to_b->data + offset, &flags, sizeof (u8));
-  offset += sizeof (u8);
-
-  /* srh tag */
-  clib_memcpy_fast (to_b->data + offset, &e->key.srh_flags, sizeof (u16));
-  offset += sizeof (u16);
-
-  /* srh segment list */
-  clib_memcpy_fast (to_b->data + offset, &e->key.srh_segment_list,
-		    sizeof (ip6_address_t) * FLOW_SRH_MAX_SID_LIST);
-  offset += sizeof (ip6_address_t) * FLOW_SRH_MAX_SID_LIST;
 
   /* flow src address */
   clib_memcpy_fast (to_b->data + offset, &e->key.src_address,
@@ -379,92 +344,17 @@ add_to_flow_record_state (vlib_main_t *vm, vlib_node_runtime_t *node,
     {
       ip6 = (ip6_header_t *) (b->data + l2_hdr_sz);
 
-      if (ip6->protocol == 43)
-	{
+  //     if (ip6->protocol == 43)
+	// {
 
-	  ip6_sr_header_t *sr0 = (ip6_sr_header_t *) (ip6 + 1);
+	  // ip6_sr_header_t *sr0 = (ip6_sr_header_t *) (ip6 + 1);
 	  // clib_warning("SRH IP: %U->%U", format_ip6_address,
 	  // &ip6->src_address, format_ip6_address, &ip6->dst_address);
 	  // clib_warning("segments_left: %u", sr0->segments_left);
 	  // clib_warning("flags: %u", sr0->flags);
 	  // clib_warning("tag: %u", sr0->tag);
-	  u32 sr_len = ip6_ext_header_len (sr0);
-	  // SRH src & dst
-	  k.srh_src_address.as_u64[0] = ip6->src_address.as_u64[0];
-	  k.srh_src_address.as_u64[1] = ip6->src_address.as_u64[1];
-	  k.srh_dst_address.as_u64[0] = ip6->dst_address.as_u64[0];
-	  k.srh_dst_address.as_u64[1] = ip6->dst_address.as_u64[1];
-	  k.srh_segments_left = sr0->segments_left;
-	  k.srh_flags = sr0->flags;
-	  k.srh_tag = sr0->tag;
-	  u32 nb_segments = (sr_len - 8) / 16;
-	  if (nb_segments > FLOW_SRH_MAX_SID_LIST)
-	    nb_segments = FLOW_SRH_MAX_SID_LIST;
-
-	  clib_warning ("NB_segments: %u", nb_segments);
-	  for (int i = 0; i < nb_segments; i++)
-	    {
-	      clib_warning ("segment[%u]: %U", i, format_ip6_address,
-			    &sr0->segments[i]);
-	      k.srh_segment_list[i].as_u64[0] = sr0->segments[i].as_u64[0];
-	      k.srh_segment_list[i].as_u64[1] = sr0->segments[i].as_u64[1];
-	    }
-
-	  if (sr0->protocol == 41)
-	    {
-	      ip6_header_t *client_ip6 =
-		(ip6_header_t *) ((void *) sr0 + sr_len);
-	      clib_warning ("client_IPv6: %U->%U", format_ip6_address,
-			    &client_ip6->src_address, format_ip6_address,
-			    &client_ip6->dst_address);
-	      // flow src & dst
-	      k.src_address.as_u64[0] = client_ip6->src_address.as_u64[0];
-	      k.src_address.as_u64[1] = client_ip6->src_address.as_u64[1];
-	      k.dst_address.as_u64[0] = client_ip6->dst_address.as_u64[0];
-	      k.dst_address.as_u64[1] = client_ip6->dst_address.as_u64[1];
-	    }
-	}
-
-      // getting endpoint behavior
-      ip6_sr_main_t *srmain = &sr_main;
-      ip6_sr_localsid_t *cur_sid;
-      pool_foreach (cur_sid, srmain->localsids)
-	{
-	  if (0 ==
-	      ip6_address_compare (&cur_sid->localsid, &k.srh_dst_address.ip6))
-	    {
-	      // mapping to IANA SR behavior codes
-	      switch (cur_sid->behavior)
-		{
-		case SR_BEHAVIOR_END:
-		  active_sid_behavior = 1;
-		  break;
-		case SR_BEHAVIOR_X:
-		  active_sid_behavior = 5;
-		  break;
-		case SR_BEHAVIOR_T:
-		  active_sid_behavior = 9;
-		  break;
-		case SR_BEHAVIOR_DX6:
-		  active_sid_behavior = 16;
-		  break;
-		case SR_BEHAVIOR_DX4:
-		  active_sid_behavior = 17;
-		  break;
-		case SR_BEHAVIOR_DT6:
-		  active_sid_behavior = 18;
-		  break;
-		case SR_BEHAVIOR_DT4:
-		  active_sid_behavior = 19;
-		  break;
-		}
-	      clib_warning ("-->LocalSID : %U->%u | IANA: %u",
-			    format_ip6_address, &cur_sid->localsid,
-			    cur_sid->behavior, active_sid_behavior);
-	      break;
-	    }
-	}
-      clib_warning ("");
+	  // u32 sr_len = ip6_ext_header_len (sr0);
+	// }
 
       octets =
 	clib_net_to_host_u16 (ip6->payload_length) + sizeof (ip6_header_t);

@@ -36,10 +36,6 @@ typedef enum
 {
   FLOW_RECORD_L3 = 1 << 0,
   FLOW_N_RECORDS = 1 << 1,
-  // FLOW_RECORD_L2 = 1 << 0,
-  // FLOW_RECORD_L4 = 1 << 2,
-  // FLOW_RECORD_L2_IP4 = 1 << 3,
-  // FLOW_RECORD_L2_IP6 = 1 << 4,
 } delayprobe_record_t;
 
 /* *INDENT-OFF* */
@@ -47,11 +43,6 @@ typedef enum __attribute__ ((__packed__))
 {
   FLOW_VARIANT_SRH_IP6 = 0,
   FLOW_N_VARIANTS,
-  // FLOW_VARIANT_IP6,
-  // FLOW_VARIANT_L2,
-  // FLOW_VARIANT_L2_IP4,
-  // FLOW_VARIANT_L2_IP6,
-  // FLOW_VARIANT_SRH_IP6,
 } delayprobe_variant_t;
 
 typedef enum __attribute__ ((__packed__))
@@ -97,12 +88,12 @@ typedef struct __attribute__ ((aligned (8)))
   delayprobe_variant_t which;
   delayprobe_direction_t direction;
 
-  ip46_address_t srh_src_address;
-  ip46_address_t srh_dst_address;
-  u8 srh_segments_left;
-  u8 srh_flags;
-  u16 srh_tag;
-  ip46_address_t srh_segment_list[FLOW_SRH_MAX_SID_LIST];
+  // ip46_address_t srh_src_address;
+  // ip46_address_t srh_dst_address;
+  // u8 srh_segments_left;
+  // u8 srh_flags;
+  // u16 srh_tag;
+  // ip46_address_t srh_segment_list[FLOW_SRH_MAX_SID_LIST];
 } delayprobe_key_t;
 /* *INDENT-ON* */
 

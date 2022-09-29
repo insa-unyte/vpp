@@ -69,35 +69,7 @@ VNET_FEATURE_INIT (delayprobe_input_ip6_srh_multicast, static) = {
 static inline ipfix_field_specifier_t *
 delayprobe_template_ip6_srh_fields (ipfix_field_specifier_t *f)
 {
-#define delayprobe_template_ip6_srh_field_count() 11
-  /* srh sourceIpv6Address, TLV type 27, 16 octets */
-  f->e_id_length =
-    ipfix_e_id_length (0 /* enterprise */, sourceIPv6Address, 16);
-  f++;
-  /* srh srhActiveSegmentIPv6, TLV type 28, 16 octets */
-  f->e_id_length =
-    ipfix_e_id_length (0 /* enterprise */, srhActiveSegmentIPv6, 16);
-  f++;
-  /* srh srhSegmentEndpointBehavior, TLV type 28, 2 octets */
-  f->e_id_length =
-    ipfix_e_id_length (0 /* enterprise */, srhSegmentEndpointBehavior, 2);
-  f++;
-  /* srhSegmentIPv6sLeft, TLV type 506, 1 octets */
-  f->e_id_length =
-    ipfix_e_id_length (0 /* enterprise */, srhSegmentIPv6sLeft, 1);
-  f++;
-  /* srhFlagsIPv6, TLV type 500, 1 octets */
-  f->e_id_length = ipfix_e_id_length (0 /* enterprise */, srhFlagsIPv6, 1);
-  f++;
-  /* srhTagIPv6, TLV type 501, 2 octets */
-  f->e_id_length = ipfix_e_id_length (0 /* enterprise */, srhTagIPv6, 2);
-  f++;
-  /* srhSegmentIPv6BasicList, TLV type 504, N octets */
-  f->e_id_length =
-    ipfix_e_id_length (0 /* enterprise */, srhSegmentIPv6BasicList,
-		       16 * FLOW_SRH_MAX_SID_LIST); // limit 16 IPv6
-  f++;
-
+#define delayprobe_template_ip6_srh_field_count() 4
   /* flow sourceIpv6Address, TLV type 27, 16 octets */
   f->e_id_length =
     ipfix_e_id_length (0 /* enterprise */, sourceIPv6Address, 16);
