@@ -48,7 +48,7 @@ api_delayprobe_tx_interface_add_del (vat_main_t *vam)
 {
   unformat_input_t *i = vam->input;
   int enable_disable = 1;
-  u8 which = FLOW_VARIANT_IP4;
+  u8 which = FLOW_VARIANT_SRH_IP6;
   u32 sw_if_index = ~0;
   vl_api_delayprobe_tx_interface_add_del_t *mp;
   int ret;
@@ -62,14 +62,8 @@ api_delayprobe_tx_interface_add_del (vat_main_t *vam)
 	;
       else if (unformat (i, "disable"))
 	enable_disable = 0;
-      else if (unformat (i, "ip4"))
-	which = FLOW_VARIANT_IP4;
-      else if (unformat (i, "ip6"))
-	which = FLOW_VARIANT_IP6;
       else if (unformat (i, "srh"))
 	which = FLOW_VARIANT_SRH_IP6;
-      else if (unformat (i, "l2"))
-	which = FLOW_VARIANT_L2;
       else
 	break;
     }
@@ -99,8 +93,8 @@ api_delayprobe_interface_add_del (vat_main_t *vam)
 {
   unformat_input_t *i = vam->input;
   int enable_disable = 1;
-  u8 which = delayprobe_WHICH_IP4;
-  u8 direction = delayprobe_DIRECTION_TX;
+  u8 which = DELAYPROBE_WHICH_IP4;
+  u8 direction = DELAYPROBE_DIRECTION_TX;
   u32 sw_if_index = ~0;
   vl_api_delayprobe_interface_add_del_t *mp;
   int ret;
@@ -115,17 +109,17 @@ api_delayprobe_interface_add_del (vat_main_t *vam)
       else if (unformat (i, "disable"))
 	enable_disable = 0;
       else if (unformat (i, "ip4"))
-	which = delayprobe_WHICH_IP4;
+	which = DELAYPROBE_WHICH_IP4;
       else if (unformat (i, "ip6"))
-	which = delayprobe_WHICH_IP6;
+	which = DELAYPROBE_WHICH_IP6;
       else if (unformat (i, "l2"))
-	which = delayprobe_WHICH_L2;
+	which = DELAYPROBE_WHICH_L2;
       else if (unformat (i, "rx"))
-	direction = delayprobe_DIRECTION_RX;
+	direction = DELAYPROBE_DIRECTION_RX;
       else if (unformat (i, "tx"))
-	direction = delayprobe_DIRECTION_TX;
+	direction = DELAYPROBE_DIRECTION_TX;
       else if (unformat (i, "both"))
-	direction = delayprobe_DIRECTION_BOTH;
+	direction = DELAYPROBE_DIRECTION_BOTH;
       else
 	break;
     }
@@ -195,15 +189,15 @@ vl_api_delayprobe_interface_details_t_handler (
   u8 direction;
   u8 *out = 0;
   const char *variants[] = {
-    [delayprobe_WHICH_IP4] = "ip4",
-    [delayprobe_WHICH_IP6] = "ip6",
-    [delayprobe_WHICH_L2] = "l2",
+    [DELAYPROBE_WHICH_IP4] = "ip4",
+    [DELAYPROBE_WHICH_IP6] = "ip6",
+    [DELAYPROBE_WHICH_L2] = "l2",
     "Erroneous variant",
   };
   const char *directions[] = {
-    [delayprobe_DIRECTION_RX] = "rx",
-    [delayprobe_DIRECTION_TX] = "tx",
-    [delayprobe_DIRECTION_BOTH] = "rx tx",
+    [DELAYPROBE_DIRECTION_RX] = "rx",
+    [DELAYPROBE_DIRECTION_TX] = "tx",
+    [DELAYPROBE_DIRECTION_BOTH] = "rx tx",
     "Erroneous direction",
   };
 
@@ -244,11 +238,11 @@ api_delayprobe_params (vat_main_t *vam)
 	while (unformat_check_input (i) != UNFORMAT_END_OF_INPUT)
 	  {
 	    if (unformat (i, "l2"))
-	      record_flags |= delayprobe_RECORD_FLAG_L2;
+	      record_flags |= DELAYPROBE_RECORD_FLAG_L2;
 	    else if (unformat (i, "l3"))
-	      record_flags |= delayprobe_RECORD_FLAG_L3;
+	      record_flags |= DELAYPROBE_RECORD_FLAG_L3;
 	    else if (unformat (i, "l4"))
-	      record_flags |= delayprobe_RECORD_FLAG_L4;
+	      record_flags |= DELAYPROBE_RECORD_FLAG_L4;
 	    else
 	      break;
 	  }
@@ -297,11 +291,11 @@ api_delayprobe_set_params (vat_main_t *vam)
 	while (unformat_check_input (i) != UNFORMAT_END_OF_INPUT)
 	  {
 	    if (unformat (i, "l2"))
-	      record_flags |= delayprobe_RECORD_FLAG_L2;
+	      record_flags |= DELAYPROBE_RECORD_FLAG_L2;
 	    else if (unformat (i, "l3"))
-	      record_flags |= delayprobe_RECORD_FLAG_L3;
+	      record_flags |= DELAYPROBE_RECORD_FLAG_L3;
 	    else if (unformat (i, "l4"))
-	      record_flags |= delayprobe_RECORD_FLAG_L4;
+	      record_flags |= DELAYPROBE_RECORD_FLAG_L4;
 	    else
 	      break;
 	  }
@@ -352,11 +346,11 @@ vl_api_delayprobe_get_params_reply_t_handler (
     format (0, "active: %u, passive: %u, record:", ntohl (mp->active_timer),
 	    ntohl (mp->passive_timer));
 
-  if (mp->record_flags & delayprobe_RECORD_FLAG_L2)
+  if (mp->record_flags & DELAYPROBE_RECORD_FLAG_L2)
     out = format (out, " l2");
-  if (mp->record_flags & delayprobe_RECORD_FLAG_L3)
+  if (mp->record_flags & DELAYPROBE_RECORD_FLAG_L3)
     out = format (out, " l3");
-  if (mp->record_flags & delayprobe_RECORD_FLAG_L4)
+  if (mp->record_flags & DELAYPROBE_RECORD_FLAG_L4)
     out = format (out, " l4");
 
   out = format (out, "\n%c", 0);

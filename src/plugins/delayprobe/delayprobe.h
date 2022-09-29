@@ -34,24 +34,24 @@
 
 typedef enum
 {
-  FLOW_RECORD_L2 = 1 << 0,
-  FLOW_RECORD_L3 = 1 << 1,
-  FLOW_RECORD_L4 = 1 << 2,
-  FLOW_RECORD_L2_IP4 = 1 << 3,
-  FLOW_RECORD_L2_IP6 = 1 << 4,
-  FLOW_N_RECORDS = 1 << 5,
+  FLOW_RECORD_L3 = 1 << 0,
+  FLOW_N_RECORDS = 1 << 1,
+  // FLOW_RECORD_L2 = 1 << 0,
+  // FLOW_RECORD_L4 = 1 << 2,
+  // FLOW_RECORD_L2_IP4 = 1 << 3,
+  // FLOW_RECORD_L2_IP6 = 1 << 4,
 } delayprobe_record_t;
 
 /* *INDENT-OFF* */
 typedef enum __attribute__ ((__packed__))
 {
-  FLOW_VARIANT_IP4 = 0,
-  FLOW_VARIANT_IP6,
-  FLOW_VARIANT_L2,
-  FLOW_VARIANT_L2_IP4,
-  FLOW_VARIANT_L2_IP6,
-  FLOW_VARIANT_SRH_IP6,
+  FLOW_VARIANT_SRH_IP6 = 0,
   FLOW_N_VARIANTS,
+  // FLOW_VARIANT_IP6,
+  // FLOW_VARIANT_L2,
+  // FLOW_VARIANT_L2_IP4,
+  // FLOW_VARIANT_L2_IP6,
+  // FLOW_VARIANT_SRH_IP6,
 } delayprobe_variant_t;
 
 typedef enum __attribute__ ((__packed__))
@@ -179,9 +179,6 @@ typedef struct
 extern delayprobe_main_t delayprobe_main;
 extern vlib_node_registration_t delayprobe_walker_node;
 
-void delayprobe_flush_callback_ip4 (void);
-void delayprobe_flush_callback_ip6 (void);
-void delayprobe_flush_callback_l2 (void);
 void delayprobe_flush_callback_srh_ip6 (void);
 u8 *format_delayprobe_entry (u8 *s, va_list *args);
 

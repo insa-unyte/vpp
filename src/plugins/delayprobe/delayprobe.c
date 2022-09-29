@@ -46,26 +46,6 @@ uword delayprobe_walker_process (vlib_main_t *vm, vlib_node_runtime_t *rt,
 
 /* Define the per-interface configurable features */
 /* *INDENT-OFF* */
-VNET_FEATURE_INIT (delayprobe_input_ip4_unicast, static) = {
-  .arc_name = "ip4-unicast",
-  .node_name = "delayprobe-input-ip4",
-  .runs_before = VNET_FEATURES ("ip4-lookup"),
-};
-VNET_FEATURE_INIT (delayprobe_input_ip4_multicast, static) = {
-  .arc_name = "ip4-multicast",
-  .node_name = "delayprobe-input-ip4",
-  .runs_before = VNET_FEATURES ("ip4-mfib-forward-lookup"),
-};
-VNET_FEATURE_INIT (delayprobe_input_ip6_unicast, static) = {
-  .arc_name = "ip6-unicast",
-  .node_name = "delayprobe-input-ip6",
-  .runs_before = VNET_FEATURES ("ip6-lookup"),
-};
-VNET_FEATURE_INIT (delayprobe_input_ip6_multicast, static) = {
-  .arc_name = "ip6-multicast",
-  .node_name = "delayprobe-input-ip6",
-  .runs_before = VNET_FEATURES ("ip6-mfib-forward-lookup"),
-};
 VNET_FEATURE_INIT (delayprobe_input_ip6_srh_unicast, static) = {
   .arc_name = "ip6-unicast",
   .node_name = "delayprobe-input-srh-ip6",
@@ -76,29 +56,6 @@ VNET_FEATURE_INIT (delayprobe_input_ip6_srh_multicast, static) = {
   .node_name = "delayprobe-input-srh-ip6",
   .runs_before = VNET_FEATURES ("ip6-mfib-forward-lookup"),
 };
-VNET_FEATURE_INIT (delayprobe_input_l2, static) = {
-  .arc_name = "device-input",
-  .node_name = "delayprobe-input-l2",
-  .runs_before = VNET_FEATURES ("ethernet-input"),
-};
-VNET_FEATURE_INIT (delayprobe_output_ip4, static) = {
-  .arc_name = "ip4-output",
-  .node_name = "delayprobe-output-ip4",
-  .runs_before = VNET_FEATURES ("interface-output"),
-};
-
-VNET_FEATURE_INIT (delayprobe_output_ip6, static) = {
-  .arc_name = "ip6-output",
-  .node_name = "delayprobe-output-ip6",
-  .runs_before = VNET_FEATURES ("interface-output"),
-  // .runs_after = VNET_FEATURES ("sr-pl-rewrite-encaps"),
-};
-
-VNET_FEATURE_INIT (delayprobe_output_l2, static) = {
-  .arc_name = "interface-output",
-  .node_name = "delayprobe-output-l2",
-  .runs_before = VNET_FEATURES ("interface-output-arc-end"),
-};
 /* *INDENT-ON* */
 
 /* Macro to finish up custom dump fns */
@@ -108,50 +65,6 @@ VNET_FEATURE_INIT (delayprobe_output_l2, static) = {
   vl_print (handle, (char *) s);                                              \
   vec_free (s);                                                               \
   return handle;
-
-static inline ipfix_field_specifier_t *
-delayprobe_template_ip4_fields (ipfix_field_specifier_t *f)
-{
-#define delayprobe_template_ip4_field_count() 4
-  /* sourceIpv4Address, TLV type 8, u32 */
-  f->e_id_length =
-    ipfix_e_id_length (0 /* enterprise */, sourceIPv4Address, 4);
-  f++;
-  /* destinationIPv4Address, TLV type 12, u32 */
-  f->e_id_length =
-    ipfix_e_id_length (0 /* enterprise */, destinationIPv4Address, 4);
-  f++;
-  /* protocolIdentifier, TLV type 4, u8 */
-  f->e_id_length =
-    ipfix_e_id_length (0 /* enterprise */, protocolIdentifier, 1);
-  f++;
-  /* octetDeltaCount, TLV type 1, u64 */
-  f->e_id_length = ipfix_e_id_length (0 /* enterprise */, octetDeltaCount, 8);
-  f++;
-  return f;
-}
-
-static inline ipfix_field_specifier_t *
-delayprobe_template_ip6_fields (ipfix_field_specifier_t *f)
-{
-#define delayprobe_template_ip6_field_count() 4
-  /* sourceIpv6Address, TLV type 27, 16 octets */
-  f->e_id_length =
-    ipfix_e_id_length (0 /* enterprise */, sourceIPv6Address, 16);
-  f++;
-  /* destinationIPv6Address, TLV type 28, 16 octets */
-  f->e_id_length =
-    ipfix_e_id_length (0 /* enterprise */, destinationIPv6Address, 16);
-  f++;
-  /* protocolIdentifier, TLV type 4, u8 */
-  f->e_id_length =
-    ipfix_e_id_length (0 /* enterprise */, protocolIdentifier, 1);
-  f++;
-  /* octetDeltaCount, TLV type 1, u64 */
-  f->e_id_length = ipfix_e_id_length (0 /* enterprise */, octetDeltaCount, 8);
-  f++;
-  return f;
-}
 
 static inline ipfix_field_specifier_t *
 delayprobe_template_ip6_srh_fields (ipfix_field_specifier_t *f)
@@ -201,75 +114,6 @@ delayprobe_template_ip6_srh_fields (ipfix_field_specifier_t *f)
   return f;
 }
 
-static inline ipfix_field_specifier_t *
-delayprobe_template_l2_fields (ipfix_field_specifier_t *f)
-{
-#define delayprobe_template_l2_field_count() 3
-  /* sourceMacAddress, TLV type 56, u8[6] we hope */
-  f->e_id_length = ipfix_e_id_length (0 /* enterprise */, sourceMacAddress, 6);
-  f++;
-  /* destinationMacAddress, TLV type 80, u8[6] we hope */
-  f->e_id_length =
-    ipfix_e_id_length (0 /* enterprise */, destinationMacAddress, 6);
-  f++;
-  /* ethernetType, TLV type 256, u16 */
-  f->e_id_length = ipfix_e_id_length (0 /* enterprise */, ethernetType, 2);
-  f++;
-  return f;
-}
-
-static inline ipfix_field_specifier_t *
-delayprobe_template_common_fields (ipfix_field_specifier_t *f)
-{
-#define delayprobe_template_common_field_count() 6
-  /* ingressInterface, TLV type 10, u32 */
-  f->e_id_length = ipfix_e_id_length (0 /* enterprise */, ingressInterface, 4);
-  f++;
-
-  /* egressInterface, TLV type 14, u32 */
-  f->e_id_length = ipfix_e_id_length (0 /* enterprise */, egressInterface, 4);
-  f++;
-
-  /* flowDirection, TLV type 61, u8 */
-  f->e_id_length = ipfix_e_id_length (0 /* enterprise */, flowDirection, 1);
-  f++;
-
-  /* packetDeltaCount, TLV type 2, u64 */
-  f->e_id_length = ipfix_e_id_length (0 /* enterprise */, packetDeltaCount, 8);
-  f++;
-
-  /* flowStartNanoseconds, TLV type 156, u64 */
-  f->e_id_length =
-    ipfix_e_id_length (0 /* enterprise */, flowStartNanoseconds, 8);
-  f++;
-
-  /* flowEndNanoseconds, TLV type 157, u64 */
-  f->e_id_length =
-    ipfix_e_id_length (0 /* enterprise */, flowEndNanoseconds, 8);
-  f++;
-
-  return f;
-}
-
-static inline ipfix_field_specifier_t *
-delayprobe_template_l4_fields (ipfix_field_specifier_t *f)
-{
-#define delayprobe_template_l4_field_count() 3
-  /* sourceTransportPort, TLV type 7, u16 */
-  f->e_id_length =
-    ipfix_e_id_length (0 /* enterprise */, sourceTransportPort, 2);
-  f++;
-  /* destinationTransportPort, TLV type 11, u16 */
-  f->e_id_length =
-    ipfix_e_id_length (0 /* enterprise */, destinationTransportPort, 2);
-  f++;
-  /* tcpControlBits, TLV type 6, u16 */
-  f->e_id_length = ipfix_e_id_length (0 /* enterprise */, tcpControlBits, 2);
-  f++;
-
-  return f;
-}
-
 /**
  * @brief Create an IPFIX template packet rewrite string
  * @param frm flow_report_main_t *
@@ -297,36 +141,10 @@ delayprobe_template_rewrite_inline (ipfix_exporter_t *exp, flow_report_t *fr,
   flow_report_stream_t *stream;
   delayprobe_main_t *fm = &delayprobe_main;
   delayprobe_record_t flags = fr->opaque.as_uword;
-  bool collect_ip4 = false, collect_ip6 = false, collect_srh = false;
 
   stream = &exp->streams[fr->stream_index];
 
-  if (flags & FLOW_RECORD_L3)
-    {
-      collect_ip4 = which == FLOW_VARIANT_L2_IP4 || which == FLOW_VARIANT_IP4;
-      collect_ip6 = which == FLOW_VARIANT_L2_IP6 || which == FLOW_VARIANT_IP6;
-      collect_srh = which == FLOW_VARIANT_SRH_IP6;
-      if (which == FLOW_VARIANT_L2_IP4)
-	flags |= FLOW_RECORD_L2_IP4;
-      if (which == FLOW_VARIANT_L2_IP6)
-	flags |= FLOW_RECORD_L2_IP6;
-    }
-
-  if (!collect_srh)
-    field_count += delayprobe_template_common_field_count ();
-
-  if (flags & FLOW_RECORD_L2)
-    field_count += delayprobe_template_l2_field_count ();
-  if (collect_ip4)
-    field_count += delayprobe_template_ip4_field_count ();
-  if (collect_ip6)
-    field_count += delayprobe_template_ip6_field_count ();
-  if (collect_srh)
-    {
-      field_count += delayprobe_template_ip6_srh_field_count ();
-    }
-  if (flags & FLOW_RECORD_L4)
-    field_count += delayprobe_template_l4_field_count ();
+  field_count += delayprobe_template_ip6_srh_field_count ();
 
   /* allocate rewrite space */
   vec_validate_aligned (rewrite,
@@ -355,20 +173,7 @@ delayprobe_template_rewrite_inline (ipfix_exporter_t *exp, flow_report_t *fr,
   /* FIXUP: message header sequence_number */
   h->domain_id = clib_host_to_net_u32 (stream->domain_id);
 
-  /* Add TLVs to the template */
-  if (!collect_srh)
-    f = delayprobe_template_common_fields (f);
-
-  if (flags & FLOW_RECORD_L2)
-    f = delayprobe_template_l2_fields (f);
-  if (collect_ip4)
-    f = delayprobe_template_ip4_fields (f);
-  if (collect_ip6)
-    f = delayprobe_template_ip6_fields (f);
-  if (collect_srh)
-    f = delayprobe_template_ip6_srh_fields (f);
-  if (flags & FLOW_RECORD_L4)
-    f = delayprobe_template_l4_fields (f);
+  f = delayprobe_template_ip6_srh_fields (f);
 
   /* Back to the template packet... */
   ip = (ip4_header_t *) &tp->ip4;
@@ -393,16 +198,6 @@ delayprobe_template_rewrite_inline (ipfix_exporter_t *exp, flow_report_t *fr,
 }
 
 static u8 *
-delayprobe_template_rewrite_ip6 (ipfix_exporter_t *exp, flow_report_t *fr,
-				 u16 collector_port,
-				 ipfix_report_element_t *elts, u32 n_elts,
-				 u32 *stream_index)
-{
-  return delayprobe_template_rewrite_inline (exp, fr, collector_port,
-					     FLOW_VARIANT_IP6);
-}
-
-static u8 *
 delayprobe_template_rewrite_srh_ip6 (ipfix_exporter_t *exp, flow_report_t *fr,
 				     u16 collector_port,
 				     ipfix_report_element_t *elts, u32 n_elts,
@@ -410,46 +205,6 @@ delayprobe_template_rewrite_srh_ip6 (ipfix_exporter_t *exp, flow_report_t *fr,
 {
   return delayprobe_template_rewrite_inline (exp, fr, collector_port,
 					     FLOW_VARIANT_SRH_IP6);
-}
-
-static u8 *
-delayprobe_template_rewrite_ip4 (ipfix_exporter_t *exp, flow_report_t *fr,
-				 u16 collector_port,
-				 ipfix_report_element_t *elts, u32 n_elts,
-				 u32 *stream_index)
-{
-  return delayprobe_template_rewrite_inline (exp, fr, collector_port,
-					     FLOW_VARIANT_IP4);
-}
-
-static u8 *
-delayprobe_template_rewrite_l2 (ipfix_exporter_t *exp, flow_report_t *fr,
-				u16 collector_port,
-				ipfix_report_element_t *elts, u32 n_elts,
-				u32 *stream_index)
-{
-  return delayprobe_template_rewrite_inline (exp, fr, collector_port,
-					     FLOW_VARIANT_L2);
-}
-
-static u8 *
-delayprobe_template_rewrite_l2_ip4 (ipfix_exporter_t *exp, flow_report_t *fr,
-				    u16 collector_port,
-				    ipfix_report_element_t *elts, u32 n_elts,
-				    u32 *stream_index)
-{
-  return delayprobe_template_rewrite_inline (exp, fr, collector_port,
-					     FLOW_VARIANT_L2_IP4);
-}
-
-static u8 *
-delayprobe_template_rewrite_l2_ip6 (ipfix_exporter_t *exp, flow_report_t *fr,
-				    u16 collector_port,
-				    ipfix_report_element_t *elts, u32 n_elts,
-				    u32 *stream_index)
-{
-  return delayprobe_template_rewrite_inline (exp, fr, collector_port,
-					     FLOW_VARIANT_L2_IP6);
 }
 
 /**
@@ -462,23 +217,6 @@ delayprobe_template_rewrite_l2_ip6 (ipfix_exporter_t *exp, flow_report_t *fr,
  * This function must simply return the incoming frame, or no template packets
  * will be sent.
  */
-vlib_frame_t *
-delayprobe_data_callback_ip4 (flow_report_main_t *frm, ipfix_exporter_t *exp,
-			      flow_report_t *fr, vlib_frame_t *f, u32 *to_next,
-			      u32 node_index)
-{
-  delayprobe_flush_callback_ip4 ();
-  return f;
-}
-
-vlib_frame_t *
-delayprobe_data_callback_ip6 (flow_report_main_t *frm, ipfix_exporter_t *exp,
-			      flow_report_t *fr, vlib_frame_t *f, u32 *to_next,
-			      u32 node_index)
-{
-  delayprobe_flush_callback_ip6 ();
-  return f;
-}
 
 vlib_frame_t *
 delayprobe_data_callback_srh_ip6 (flow_report_main_t *frm,
@@ -487,15 +225,6 @@ delayprobe_data_callback_srh_ip6 (flow_report_main_t *frm,
 				  u32 node_index)
 {
   delayprobe_flush_callback_srh_ip6 ();
-  return f;
-}
-
-vlib_frame_t *
-delayprobe_data_callback_l2 (flow_report_main_t *frm, ipfix_exporter_t *exp,
-			     flow_report_t *fr, vlib_frame_t *f, u32 *to_next,
-			     u32 node_index)
-{
-  delayprobe_flush_callback_l2 ();
   return f;
 }
 
@@ -628,45 +357,7 @@ delayprobe_interface_add_del_feature (delayprobe_main_t *fm, u32 sw_if_index,
   if ((is_add && fm->template_per_flow[which] == 1) ||
       (!is_add && fm->template_per_flow[which] == 0))
     {
-      if (which == FLOW_VARIANT_L2)
-	{
-	  if (fm->record & FLOW_RECORD_L2)
-	    {
-	      rv = delayprobe_template_add_del (
-		1, UDP_DST_PORT_ipfix, flags, delayprobe_data_callback_l2,
-		delayprobe_template_rewrite_l2, is_add, &template_id);
-	    }
-	  if (fm->record & FLOW_RECORD_L3 || fm->record & FLOW_RECORD_L4)
-	    {
-	      rv = delayprobe_template_add_del (
-		1, UDP_DST_PORT_ipfix, flags, delayprobe_data_callback_l2,
-		delayprobe_template_rewrite_l2_ip4, is_add, &template_id);
-	      fm->template_reports[flags | FLOW_RECORD_L2_IP4] =
-		(is_add) ? template_id : 0;
-	      rv = delayprobe_template_add_del (
-		1, UDP_DST_PORT_ipfix, flags, delayprobe_data_callback_l2,
-		delayprobe_template_rewrite_l2_ip6, is_add, &template_id);
-	      fm->template_reports[flags | FLOW_RECORD_L2_IP6] =
-		(is_add) ? template_id : 0;
-
-	      /* Special case L2 */
-	      fm->context[FLOW_VARIANT_L2_IP4].flags =
-		flags | FLOW_RECORD_L2_IP4;
-	      fm->context[FLOW_VARIANT_L2_IP6].flags =
-		flags | FLOW_RECORD_L2_IP6;
-
-	      fm->template_reports[flags] = template_id;
-	    }
-	}
-      else if (which == FLOW_VARIANT_IP4)
-	rv = delayprobe_template_add_del (
-	  1, UDP_DST_PORT_ipfix, flags, delayprobe_data_callback_ip4,
-	  delayprobe_template_rewrite_ip4, is_add, &template_id);
-      else if (which == FLOW_VARIANT_IP6)
-	rv = delayprobe_template_add_del (
-	  1, UDP_DST_PORT_ipfix, flags, delayprobe_data_callback_ip6,
-	  delayprobe_template_rewrite_ip6, is_add, &template_id);
-      else if (which == FLOW_VARIANT_SRH_IP6)
+      if (which == FLOW_VARIANT_SRH_IP6)
 	rv = delayprobe_template_add_del (
 	  1, UDP_DST_PORT_ipfix, flags, delayprobe_data_callback_srh_ip6,
 	  delayprobe_template_rewrite_srh_ip6, is_add, &template_id);
@@ -684,21 +375,7 @@ delayprobe_interface_add_del_feature (delayprobe_main_t *fm, u32 sw_if_index,
     }
   if (direction == FLOW_DIRECTION_RX || direction == FLOW_DIRECTION_BOTH)
     {
-      if (which == FLOW_VARIANT_IP4)
-	{
-	  vnet_feature_enable_disable ("ip4-unicast", "delayprobe-input-ip4",
-				       sw_if_index, is_add, 0, 0);
-	  vnet_feature_enable_disable ("ip4-multicast", "delayprobe-input-ip4",
-				       sw_if_index, is_add, 0, 0);
-	}
-      else if (which == FLOW_VARIANT_IP6)
-	{
-	  vnet_feature_enable_disable ("ip6-unicast", "delayprobe-input-ip6",
-				       sw_if_index, is_add, 0, 0);
-	  vnet_feature_enable_disable ("ip6-multicast", "delayprobe-input-ip6",
-				       sw_if_index, is_add, 0, 0);
-	}
-      else if (which == FLOW_VARIANT_SRH_IP6)
+      if (which == FLOW_VARIANT_SRH_IP6)
 	{
 	  vnet_feature_enable_disable ("ip6-unicast",
 				       "delayprobe-input-srh-ip6", sw_if_index,
@@ -707,24 +384,11 @@ delayprobe_interface_add_del_feature (delayprobe_main_t *fm, u32 sw_if_index,
 				       "delayprobe-input-srh-ip6", sw_if_index,
 				       is_add, 0, 0);
 	}
-      else if (which == FLOW_VARIANT_L2)
-	vnet_feature_enable_disable ("device-input", "delayprobe-input-l2",
-				     sw_if_index, is_add, 0, 0);
     }
 
   if (direction == FLOW_DIRECTION_TX || direction == FLOW_DIRECTION_BOTH)
     {
-      if (which == FLOW_VARIANT_IP4)
-	vnet_feature_enable_disable ("ip4-output", "delayprobe-output-ip4",
-				     sw_if_index, is_add, 0, 0);
-      else if (which == FLOW_VARIANT_IP6)
-	vnet_feature_enable_disable ("ip6-output", "delayprobe-output-ip6",
-				     sw_if_index, is_add, 0, 0);
-      else if (which == FLOW_VARIANT_L2)
-	vnet_feature_enable_disable ("interface-output",
-				     "delayprobe-output-l2", sw_if_index,
-				     is_add, 0, 0);
-      else if (which == FLOW_VARIANT_SRH_IP6)
+      if (which == FLOW_VARIANT_SRH_IP6)
 	{
 	  vnet_feature_enable_disable ("ip6-output", "delayprobe-output-ip6",
 				       sw_if_index, is_add, 0, 0);
@@ -746,9 +410,8 @@ delayprobe_interface_add_del_feature (delayprobe_main_t *fm, u32 sw_if_index,
  * @brief API message handler
  * @param mp vl_api_delayprobe_tx_interface_add_del_t * mp the api message
  */
-void
-vl_api_delayprobe_tx_interface_add_del_t_handler (
-  vl_api_delayprobe_tx_interface_add_del_t *mp)
+void vl_api_delayprobe_tx_interface_add_del_t_handler
+  (vl_api_delayprobe_tx_interface_add_del_t * mp)
 {
   delayprobe_main_t *fm = &delayprobe_main;
   vl_api_delayprobe_tx_interface_add_del_reply_t *rmp;
@@ -772,7 +435,7 @@ vl_api_delayprobe_tx_interface_add_del_t_handler (
     }
 
   rv = delayprobe_interface_add_del_feature (fm, sw_if_index, mp->which,
-					     FLOW_DIRECTION_TX, mp->is_add);
+					    FLOW_DIRECTION_TX, mp->is_add);
 
 out:
   BAD_SW_IF_INDEX_LABEL;
@@ -784,7 +447,7 @@ void
 vl_api_delayprobe_interface_add_del_t_handler (
   vl_api_delayprobe_interface_add_del_t *mp)
 {
-  clib_warning ("NEVER CALLED");
+  clib_warning("NEVER CALLED");
   delayprobe_main_t *fm = &delayprobe_main;
   vl_api_delayprobe_interface_add_del_reply_t *rmp;
   u32 sw_if_index;
@@ -797,25 +460,13 @@ vl_api_delayprobe_interface_add_del_t_handler (
 
   sw_if_index = ntohl (mp->sw_if_index);
   is_add = mp->is_add;
+  which = FLOW_VARIANT_SRH_IP6;
 
-  if (mp->which == delayprobe_WHICH_IP4)
-    which = FLOW_VARIANT_IP4;
-  else if (mp->which == delayprobe_WHICH_IP6)
-    which = FLOW_VARIANT_IP6;
-  else if (mp->which == delayprobe_WHICH_L2)
-    which = FLOW_VARIANT_L2;
-  else
-    {
-      clib_warning ("Invalid value of which");
-      rv = VNET_API_ERROR_INVALID_VALUE;
-      goto out;
-    }
-
-  if (mp->direction == delayprobe_DIRECTION_RX)
+  if (mp->direction == DELAYPROBE_DIRECTION_RX)
     direction = FLOW_DIRECTION_RX;
-  else if (mp->direction == delayprobe_DIRECTION_TX)
+  else if (mp->direction == DELAYPROBE_DIRECTION_TX)
     direction = FLOW_DIRECTION_TX;
-  else if (mp->direction == delayprobe_DIRECTION_BOTH)
+  else if (mp->direction == DELAYPROBE_DIRECTION_BOTH)
     direction = FLOW_DIRECTION_BOTH;
   else
     {
@@ -858,7 +509,7 @@ vl_api_delayprobe_interface_add_del_t_handler (
     }
 
   rv = delayprobe_interface_add_del_feature (fm, sw_if_index, which, direction,
-					     is_add);
+					    is_add);
 
 out:
   BAD_SW_IF_INDEX_LABEL;
@@ -868,7 +519,7 @@ out:
 
 static void
 send_delayprobe_interface_details (u32 sw_if_index, u8 which, u8 direction,
-				   vl_api_registration_t *reg, u32 context)
+				  vl_api_registration_t *reg, u32 context)
 {
   delayprobe_main_t *fm = &delayprobe_main;
   vl_api_delayprobe_interface_details_t *rmp = 0;
@@ -883,21 +534,14 @@ send_delayprobe_interface_details (u32 sw_if_index, u8 which, u8 direction,
 
   rmp->sw_if_index = htonl (sw_if_index);
 
-  if (which == FLOW_VARIANT_IP4)
-    rmp->which = delayprobe_WHICH_IP4;
-  else if (which == FLOW_VARIANT_IP6)
-    rmp->which = delayprobe_WHICH_IP6;
-  else if (which == FLOW_VARIANT_L2)
-    rmp->which = delayprobe_WHICH_L2;
-  else
-    ASSERT (0);
+  rmp->which = DELAYPROBE_WHICH_IP6;
 
   if (direction == FLOW_DIRECTION_RX)
-    rmp->direction = delayprobe_DIRECTION_RX;
+    rmp->direction = DELAYPROBE_DIRECTION_RX;
   else if (direction == FLOW_DIRECTION_TX)
-    rmp->direction = delayprobe_DIRECTION_TX;
+    rmp->direction = DELAYPROBE_DIRECTION_TX;
   else if (direction == FLOW_DIRECTION_BOTH)
-    rmp->direction = delayprobe_DIRECTION_BOTH;
+    rmp->direction = DELAYPROBE_DIRECTION_BOTH;
   else
     ASSERT (0);
 
@@ -955,20 +599,14 @@ vl_api_delayprobe_interface_dump_t_handler (
   })
 
 static int
-delayprobe_params (delayprobe_main_t *fm, u8 record_l2, u8 record_l3,
-		   u8 record_l4, u32 active_timer, u32 passive_timer)
+delayprobe_params (delayprobe_main_t *fm, u32 active_timer, u32 passive_timer)
 {
   delayprobe_record_t flags = 0;
 
   if (vec_neg_search (fm->flow_per_interface, (u8) ~0) != ~0)
     return VNET_API_ERROR_UNSUPPORTED;
 
-  if (record_l2)
-    flags |= FLOW_RECORD_L2;
-  if (record_l3)
-    flags |= FLOW_RECORD_L3;
-  if (record_l4)
-    flags |= FLOW_RECORD_L4;
+  flags |= FLOW_RECORD_L3;
 
   fm->record = flags;
 
@@ -990,9 +628,7 @@ vl_api_delayprobe_params_t_handler (vl_api_delayprobe_params_t *mp)
   vl_api_delayprobe_params_reply_t *rmp;
   int rv = 0;
 
-  rv = delayprobe_params (fm, mp->record_flags & delayprobe_RECORD_FLAG_L2,
-			  mp->record_flags & delayprobe_RECORD_FLAG_L3,
-			  mp->record_flags & delayprobe_RECORD_FLAG_L4,
+  rv = delayprobe_params (fm,
 			  clib_net_to_host_u32 (mp->active_timer),
 			  clib_net_to_host_u32 (mp->passive_timer));
 
@@ -1009,9 +645,9 @@ vl_api_delayprobe_set_params_t_handler (vl_api_delayprobe_set_params_t *mp)
   u32 passive_timer;
   int rv = 0;
 
-  record_l2 = (mp->record_flags & delayprobe_RECORD_FLAG_L2);
-  record_l3 = (mp->record_flags & delayprobe_RECORD_FLAG_L3);
-  record_l4 = (mp->record_flags & delayprobe_RECORD_FLAG_L4);
+  record_l2 = (mp->record_flags & DELAYPROBE_RECORD_FLAG_L2);
+  record_l3 = (mp->record_flags & DELAYPROBE_RECORD_FLAG_L3);
+  record_l4 = (mp->record_flags & DELAYPROBE_RECORD_FLAG_L4);
 
   active_timer = clib_net_to_host_u32 (mp->active_timer);
   passive_timer = clib_net_to_host_u32 (mp->passive_timer);
@@ -1023,7 +659,7 @@ vl_api_delayprobe_set_params_t_handler (vl_api_delayprobe_set_params_t *mp)
       goto out;
     }
 
-  rv = delayprobe_params (fm, record_l2, record_l3, record_l4, active_timer,
+  rv = delayprobe_params (fm, active_timer,
 			  passive_timer);
   if (rv == VNET_API_ERROR_UNSUPPORTED)
     clib_warning (
@@ -1041,12 +677,12 @@ vl_api_delayprobe_get_params_t_handler (vl_api_delayprobe_get_params_t *mp)
   u8 record_flags = 0;
   int rv = 0;
 
-  if (fm->record & FLOW_RECORD_L2)
-    record_flags |= delayprobe_RECORD_FLAG_L2;
+  // if (fm->record & FLOW_RECORD_L2)
+  //   record_flags |= DELAYPROBE_RECORD_FLAG_L2;
   if (fm->record & FLOW_RECORD_L3)
-    record_flags |= delayprobe_RECORD_FLAG_L3;
-  if (fm->record & FLOW_RECORD_L4)
-    record_flags |= delayprobe_RECORD_FLAG_L4;
+    record_flags |= DELAYPROBE_RECORD_FLAG_L3;
+  // if (fm->record & FLOW_RECORD_L4)
+  //   record_flags |= DELAYPROBE_RECORD_FLAG_L4;
 
   // clang-format off
   REPLY_MACRO2 (VL_API_DELAYPROBE_GET_PARAMS_REPLY,
@@ -1102,14 +738,8 @@ u8 *
 format_delayprobe_feature (u8 *s, va_list *args)
 {
   u8 *which = va_arg (*args, u8 *);
-  if (*which == FLOW_VARIANT_IP4)
-    s = format (s, "ip4");
-  else if (*which == FLOW_VARIANT_IP6)
-    s = format (s, "ip6");
-  else if (*which == FLOW_VARIANT_SRH_IP6)
+  if (*which == FLOW_VARIANT_SRH_IP6)
     s = format (s, "srh");
-  else if (*which == FLOW_VARIANT_L2)
-    s = format (s, "l2");
 
   return s;
 }
@@ -1121,12 +751,8 @@ format_delayprobe_params (u8 *s, va_list *args)
   u32 active_timer = va_arg (*args, u32);
   u32 passive_timer = va_arg (*args, u32);
 
-  if (flags & FLOW_RECORD_L2)
-    s = format (s, " l2");
   if (flags & FLOW_RECORD_L3)
     s = format (s, " l3");
-  if (flags & FLOW_RECORD_L4)
-    s = format (s, " l4");
 
   if (active_timer != (u32) ~0)
     s = format (s, " active: %d", active_timer);
@@ -1186,7 +812,7 @@ delayprobe_interface_add_del_feature_command_fn (vlib_main_t *vm,
   delayprobe_main_t *fm = &delayprobe_main;
   u32 sw_if_index = ~0;
   int is_add = 1;
-  u8 which = FLOW_VARIANT_IP4;
+  u8 which = FLOW_VARIANT_SRH_IP6;
   delayprobe_direction_t direction = FLOW_DIRECTION_TX;
   int rv;
 
@@ -1197,14 +823,7 @@ delayprobe_interface_add_del_feature_command_fn (vlib_main_t *vm,
       else if (unformat (input, "%U", unformat_vnet_sw_interface,
 			 fm->vnet_main, &sw_if_index))
 	;
-      else if (unformat (input, "ip4"))
-	which = FLOW_VARIANT_IP4;
-      else if (unformat (input, "ip6"))
-	which = FLOW_VARIANT_IP6;
-      else if (unformat (input, "l2"))
-	which = FLOW_VARIANT_L2;
-      else if (unformat (input, "srh"))
-	which = FLOW_VARIANT_SRH_IP6;
+      else if(unformat (input, "srh"));
       else if (unformat (input, "rx"))
 	direction = FLOW_DIRECTION_RX;
       else if (unformat (input, "tx"))
@@ -1291,7 +910,7 @@ delayprobe_params_command_fn (vlib_main_t *vm, unformat_input_t *input,
 			      vlib_cli_command_t *cmd)
 {
   delayprobe_main_t *fm = &delayprobe_main;
-  bool record_l2 = false, record_l3 = false, record_l4 = false;
+  // bool record_l3 = true;
   u32 active_timer = ~0;
   u32 passive_timer = ~0;
 
@@ -1304,16 +923,10 @@ delayprobe_params_command_fn (vlib_main_t *vm, unformat_input_t *input,
       else if (unformat (input, "record"))
 	while (unformat_check_input (input) != UNFORMAT_END_OF_INPUT)
 	  {
-	    if (unformat (input, "l2"))
-	      record_l2 = true;
-	    else if (unformat (input, "l3"))
-	      record_l3 = true;
-	    else if (unformat (input, "l4"))
-	      record_l4 = true;
-	    else
+	    if (unformat (input, "l3"))
 	      break;
 	  }
-      else
+    else
 	break;
     }
 
@@ -1321,8 +934,7 @@ delayprobe_params_command_fn (vlib_main_t *vm, unformat_input_t *input,
     return clib_error_return (
       0, "Passive timer has to be greater than active one...");
 
-  if (delayprobe_params (fm, record_l2, record_l3, record_l4, active_timer,
-			 passive_timer))
+  if (delayprobe_params (fm, active_timer, passive_timer))
     return clib_error_return (0, "Couldn't change flowperpacket params when "
 				 "feature is enabled on some interface ...");
   return 0;
@@ -1359,14 +971,13 @@ delayprobe_show_params_command_fn (vlib_main_t *vm, unformat_input_t *input,
 /* *INDENT-OFF* */
 VLIB_CLI_COMMAND (delayprobe_enable_disable_command, static) = {
   .path = "delayprobe feature add-del",
-  .short_help =
-    "delayprobe feature add-del <interface-name> [(l2|ip4|ip6|srh)] "
-    "[(rx|tx|both)] [disable]",
+  .short_help = "delayprobe feature add-del <interface-name> srh "
+		"[(rx|tx|both)] [disable]",
   .function = delayprobe_interface_add_del_feature_command_fn,
 };
 VLIB_CLI_COMMAND (delayprobe_params_command, static) = {
   .path = "delayprobe params",
-  .short_help = "delayprobe params record [l2] [l3] [l4] [active <timer>] "
+  .short_help = "delayprobe params record l3 [active <timer>] "
 		"[passive <timer>]",
   .function = delayprobe_params_command_fn,
 };

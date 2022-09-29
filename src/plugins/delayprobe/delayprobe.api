@@ -5,36 +5,36 @@
     used to control the delayprobe plugin
 */
 
-option version = "2.1.0";
+option version = "1.0.0";
 
 import "vnet/interface_types.api";
 
 enum delayprobe_which_flags : u8
 {
-  delayprobe_WHICH_FLAG_IP4 = 0x1,
-  delayprobe_WHICH_FLAG_L2  = 0x2,
-  delayprobe_WHICH_FLAG_IP6 = 0x4,
+  DELAYPROBE_WHICH_FLAG_IP4 = 0x1,
+  DELAYPROBE_WHICH_FLAG_L2  = 0x2,
+  DELAYPROBE_WHICH_FLAG_IP6 = 0x4,
 };
 
 enum delayprobe_which : u8
 {
-  delayprobe_WHICH_IP4 = 0,
-  delayprobe_WHICH_IP6,
-  delayprobe_WHICH_L2,
+  DELAYPROBE_WHICH_IP4 = 0,
+  DELAYPROBE_WHICH_IP6,
+  DELAYPROBE_WHICH_L2,
 };
 
 enum delayprobe_record_flags : u8
 {
-  delayprobe_RECORD_FLAG_L2 = 0x1,
-  delayprobe_RECORD_FLAG_L3 = 0x2,
-  delayprobe_RECORD_FLAG_L4 = 0x4,
+  DELAYPROBE_RECORD_FLAG_L2 = 0x1,
+  DELAYPROBE_RECORD_FLAG_L3 = 0x2,
+  DELAYPROBE_RECORD_FLAG_L4 = 0x4,
 };
 
 enum delayprobe_direction : u8
 {
-  delayprobe_DIRECTION_RX = 0,
-  delayprobe_DIRECTION_TX,
-  delayprobe_DIRECTION_BOTH,
+  DELAYPROBE_DIRECTION_RX = 0,
+  DELAYPROBE_DIRECTION_TX,
+  DELAYPROBE_DIRECTION_BOTH,
 };
 
 /** \brief Enable / disable per-packet IPFIX recording on an interface

@@ -63,9 +63,7 @@ typedef struct
 } delayprobe_trace_t;
 
 static char *delayprobe_variant_strings[] = {
-  [FLOW_VARIANT_IP4] = "IP4",	    [FLOW_VARIANT_IP6] = "IP6",
-  [FLOW_VARIANT_L2] = "L2",	    [FLOW_VARIANT_L2_IP4] = "L2-IP4",
-  [FLOW_VARIANT_L2_IP6] = "L2-IP6", [FLOW_VARIANT_SRH_IP6] = "IP6_SRH",
+  [FLOW_VARIANT_SRH_IP6] = "IP6_SRH",
 };
 
 /* packet trace format function */
@@ -75,7 +73,7 @@ format_delayprobe_trace (u8 *s, va_list *args)
   CLIB_UNUSED (vlib_main_t * vm) = va_arg (*args, vlib_main_t *);
   CLIB_UNUSED (vlib_node_t * node) = va_arg (*args, vlib_node_t *);
   delayprobe_trace_t *t = va_arg (*args, delayprobe_trace_t *);
-  u32 indent = format_get_indent (s);
+  // u32 indent = format_get_indent (s);
 
   s = format (s,
 	      "delayprobe[%s]: rx_sw_if_index %d, tx_sw_if_index %d, "
@@ -83,18 +81,13 @@ format_delayprobe_trace (u8 *s, va_list *args)
 	      delayprobe_variant_strings[t->which], t->rx_sw_if_index,
 	      t->tx_sw_if_index, t->timestamp, t->buffer_size);
 
-  if (t->which == FLOW_VARIANT_L2)
-    s = format (s, "\n%U -> %U", format_white_space, indent,
-		format_ethernet_address, &t->src_mac, format_ethernet_address,
-		&t->dst_mac);
-
-  if (t->protocol > 0 &&
-      (t->which == FLOW_VARIANT_L2_IP4 || t->which == FLOW_VARIANT_IP4 ||
-       t->which == FLOW_VARIANT_L2_IP6 || t->which == FLOW_VARIANT_IP6))
-    s = format (s, "\n%U%U: %U -> %U", format_white_space, indent,
-		format_ip_protocol, t->protocol, format_ip46_address,
-		&t->src_address, IP46_TYPE_ANY, format_ip46_address,
-		&t->dst_address, IP46_TYPE_ANY);
+  // if (t->protocol > 0 &&
+  //     (t->which == FLOW_VARIANT_L2_IP4 || t->which == FLOW_VARIANT_IP4 ||
+  //      t->which == FLOW_VARIANT_L2_IP6 || t->which == FLOW_VARIANT_IP6))
+  //   s = format (s, "\n%U%U: %U -> %U", format_white_space, indent,
+	// 	format_ip_protocol, t->protocol, format_ip46_address,
+	// 	&t->src_address, IP46_TYPE_ANY, format_ip46_address,
+	// 	&t->dst_address, IP46_TYPE_ANY);
   return s;
 }
 
@@ -149,11 +142,11 @@ static inline delayprobe_variant_t
 delayprobe_get_variant (delayprobe_variant_t which, delayprobe_record_t flags,
 			u16 ethertype)
 {
-  if (which == FLOW_VARIANT_L2 &&
-      (flags & FLOW_RECORD_L3 || flags & FLOW_RECORD_L4))
-    return ethertype == ETHERNET_TYPE_IP6 ? FLOW_VARIANT_L2_IP6 :
-	   ethertype == ETHERNET_TYPE_IP4 ? FLOW_VARIANT_L2_IP4 :
-					    FLOW_VARIANT_L2;
+  // if (which == FLOW_VARIANT_L2 &&
+  //     (flags & FLOW_RECORD_L3 || flags & FLOW_RECORD_L4))
+  //   return ethertype == ETHERNET_TYPE_IP6 ? FLOW_VARIANT_L2_IP6 :
+	//    ethertype == ETHERNET_TYPE_IP4 ? FLOW_VARIANT_L2_IP4 :
+	// 				    FLOW_VARIANT_L2;
   return which;
 }
 
@@ -161,96 +154,6 @@ delayprobe_get_variant (delayprobe_variant_t which, delayprobe_record_t flags,
  * NTP rfc868 : 2 208 988 800 corresponds to 00:00  1 Jan 1970 GMT
  */
 #define NTP_TIMESTAMP 2208988800LU
-
-static inline u32
-delayprobe_common_add (vlib_buffer_t *to_b, delayprobe_entry_t *e, u16 offset)
-{
-  u16 start = offset;
-
-  /* Ingress interface */
-  u32 rx_if = clib_host_to_net_u32 (e->key.rx_sw_if_index);
-  clib_memcpy_fast (to_b->data + offset, &rx_if, sizeof (rx_if));
-  offset += sizeof (rx_if);
-
-  /* Egress interface */
-  u32 tx_if = clib_host_to_net_u32 (e->key.tx_sw_if_index);
-  clib_memcpy_fast (to_b->data + offset, &tx_if, sizeof (tx_if));
-  offset += sizeof (tx_if);
-
-  /* Flow direction
-     0x00: ingress flow
-     0x01: egress flow */
-  to_b->data[offset++] = (e->key.direction == FLOW_DIRECTION_TX);
-
-  /* packet delta count */
-  u64 packetdelta = clib_host_to_net_u64 (e->packetcount);
-  clib_memcpy_fast (to_b->data + offset, &packetdelta, sizeof (u64));
-  offset += sizeof (u64);
-
-  /* flowStartNanoseconds */
-  u32 t = clib_host_to_net_u32 (e->flow_start.sec + NTP_TIMESTAMP);
-  clib_memcpy_fast (to_b->data + offset, &t, sizeof (u32));
-  offset += sizeof (u32);
-  t = clib_host_to_net_u32 (e->flow_start.nsec);
-  clib_memcpy_fast (to_b->data + offset, &t, sizeof (u32));
-  offset += sizeof (u32);
-
-  /* flowEndNanoseconds */
-  t = clib_host_to_net_u32 (e->flow_end.sec + NTP_TIMESTAMP);
-  clib_memcpy_fast (to_b->data + offset, &t, sizeof (u32));
-  offset += sizeof (u32);
-  t = clib_host_to_net_u32 (e->flow_end.nsec);
-  clib_memcpy_fast (to_b->data + offset, &t, sizeof (u32));
-  offset += sizeof (u32);
-
-  return offset - start;
-}
-
-static inline u32
-delayprobe_l2_add (vlib_buffer_t *to_b, delayprobe_entry_t *e, u16 offset)
-{
-  u16 start = offset;
-
-  /* src mac address */
-  clib_memcpy_fast (to_b->data + offset, &e->key.src_mac, 6);
-  offset += 6;
-
-  /* dst mac address */
-  clib_memcpy_fast (to_b->data + offset, &e->key.dst_mac, 6);
-  offset += 6;
-
-  /* ethertype */
-  clib_memcpy_fast (to_b->data + offset, &e->key.ethertype, 2);
-  offset += 2;
-
-  return offset - start;
-}
-
-static inline u32
-delayprobe_l3_ip6_add (vlib_buffer_t *to_b, delayprobe_entry_t *e, u16 offset)
-{
-  u16 start = offset;
-
-  /* ip6 src address */
-  clib_memcpy_fast (to_b->data + offset, &e->key.src_address,
-		    sizeof (ip6_address_t));
-  offset += sizeof (ip6_address_t);
-
-  /* ip6 dst address */
-  clib_memcpy_fast (to_b->data + offset, &e->key.dst_address,
-		    sizeof (ip6_address_t));
-  offset += sizeof (ip6_address_t);
-
-  /* Protocol */
-  to_b->data[offset++] = e->key.protocol;
-
-  /* octetDeltaCount */
-  u64 octetdelta = clib_host_to_net_u64 (e->octetcount);
-  clib_memcpy_fast (to_b->data + offset, &octetdelta, sizeof (u64));
-  offset += sizeof (u64);
-
-  return offset - start;
-}
 
 static inline u32
 delayprobe_srh_ip6_add (vlib_buffer_t *to_b, delayprobe_entry_t *e, u16 offset)
@@ -311,53 +214,6 @@ delayprobe_srh_ip6_add (vlib_buffer_t *to_b, delayprobe_entry_t *e, u16 offset)
   u64 octetdelta = clib_host_to_net_u64 (e->octetcount);
   clib_memcpy_fast (to_b->data + offset, &octetdelta, sizeof (u64));
   offset += sizeof (u64);
-
-  return offset - start;
-}
-
-static inline u32
-delayprobe_l3_ip4_add (vlib_buffer_t *to_b, delayprobe_entry_t *e, u16 offset)
-{
-  u16 start = offset;
-
-  /* ip4 src address */
-  clib_memcpy_fast (to_b->data + offset, &e->key.src_address.ip4,
-		    sizeof (ip4_address_t));
-  offset += sizeof (ip4_address_t);
-
-  /* ip4 dst address */
-  clib_memcpy_fast (to_b->data + offset, &e->key.dst_address.ip4,
-		    sizeof (ip4_address_t));
-  offset += sizeof (ip4_address_t);
-
-  /* Protocol */
-  to_b->data[offset++] = e->key.protocol;
-
-  /* octetDeltaCount */
-  u64 octetdelta = clib_host_to_net_u64 (e->octetcount);
-  clib_memcpy_fast (to_b->data + offset, &octetdelta, sizeof (u64));
-  offset += sizeof (u64);
-
-  return offset - start;
-}
-
-static inline u32
-delayprobe_l4_add (vlib_buffer_t *to_b, delayprobe_entry_t *e, u16 offset)
-{
-  u16 start = offset;
-
-  /* src port */
-  clib_memcpy_fast (to_b->data + offset, &e->key.src_port, 2);
-  offset += 2;
-
-  /* dst port */
-  clib_memcpy_fast (to_b->data + offset, &e->key.dst_port, 2);
-  offset += 2;
-
-  /* tcp control bits */
-  u16 control_bits = htons (e->prot.tcp.flags);
-  clib_memcpy_fast (to_b->data + offset, &control_bits, 2);
-  offset += 2;
 
   return offset - start;
 }
@@ -453,7 +309,7 @@ add_to_flow_record_state (vlib_main_t *vm, vlib_node_runtime_t *node,
   u16 active_sid_behavior = 0;
 
   delayprobe_record_t flags = fm->context[which].flags;
-  bool collect_ip4 = false, collect_ip6 = false, collect_srh = false;
+  // bool collect_ip4 = false, collect_ip6 = false, collect_srh = false;
   ASSERT (b);
   ethernet_header_t *eth = ethernet_buffer_get_header (b);
   // ethernet_header_t *eh0 = vlib_buffer_get_current (b);
@@ -472,20 +328,11 @@ add_to_flow_record_state (vlib_main_t *vm, vlib_node_runtime_t *node,
   /* *INDENT-OFF* */
   delayprobe_key_t k = {};
   /* *INDENT-ON* */
-  ip4_header_t *ip4 = 0;
+  // ip4_header_t *ip4 = 0;
   ip6_header_t *ip6 = 0;
   udp_header_t *udp = 0;
   tcp_header_t *tcp = 0;
   u8 tcp_flags = 0;
-
-  if (flags & FLOW_RECORD_L3 || flags & FLOW_RECORD_L4)
-    {
-      collect_ip4 = which == FLOW_VARIANT_L2_IP4 || which == FLOW_VARIANT_IP4;
-      collect_ip6 = which == FLOW_VARIANT_L2_IP6 || which == FLOW_VARIANT_IP6;
-      collect_srh = which == FLOW_VARIANT_SRH_IP6;
-    }
-  // clib_warning("collect_srh? %d - collect_ip6? %d - collect ip4? %d,
-  // which?%d", collect_srh, collect_ip6, collect_ip4, which);
 
   k.rx_sw_if_index = vnet_buffer (b)->sw_if_index[VLIB_RX];
   k.tx_sw_if_index = vnet_buffer (b)->sw_if_index[VLIB_TX];
@@ -493,12 +340,6 @@ add_to_flow_record_state (vlib_main_t *vm, vlib_node_runtime_t *node,
   k.which = which;
   k.direction = direction;
 
-  if (flags & FLOW_RECORD_L2)
-    {
-      clib_memcpy_fast (k.src_mac, eth->src_address, 6);
-      clib_memcpy_fast (k.dst_mac, eth->dst_address, 6);
-      k.ethertype = ethertype;
-    }
   if (ethertype == ETHERNET_TYPE_VLAN)
     {
       /*VLAN TAG*/
@@ -512,9 +353,8 @@ add_to_flow_record_state (vlib_main_t *vm, vlib_node_runtime_t *node,
 	}
       k.ethertype = ethertype = clib_net_to_host_u16 ((ethv)->type);
     }
-  // clib_warning("ethertype==ETHERNET_TYPE_IP6 : %d", ethertype ==
-  // ETHERNET_TYPE_IP6);
-  if (collect_ip6 && ethertype == ETHERNET_TYPE_IP6)
+
+  if (ethertype == ETHERNET_TYPE_IP6)
     {
       ip6 = (ip6_header_t *) (b->data + l2_hdr_sz);
       if (flags & FLOW_RECORD_L3)
@@ -535,7 +375,7 @@ add_to_flow_record_state (vlib_main_t *vm, vlib_node_runtime_t *node,
       octets =
 	clib_net_to_host_u16 (ip6->payload_length) + sizeof (ip6_header_t);
     }
-  if (collect_srh && ethertype == ETHERNET_TYPE_IP6)
+  if (ethertype == ETHERNET_TYPE_IP6)
     {
       ip6 = (ip6_header_t *) (b->data + l2_hdr_sz);
 
@@ -629,25 +469,6 @@ add_to_flow_record_state (vlib_main_t *vm, vlib_node_runtime_t *node,
       octets =
 	clib_net_to_host_u16 (ip6->payload_length) + sizeof (ip6_header_t);
     }
-  if (collect_ip4 && ethertype == ETHERNET_TYPE_IP4)
-    {
-      ip4 = (ip4_header_t *) (b->data + l2_hdr_sz);
-      if (flags & FLOW_RECORD_L3)
-	{
-	  k.src_address.ip4.as_u32 = ip4->src_address.as_u32;
-	  k.dst_address.ip4.as_u32 = ip4->dst_address.as_u32;
-	}
-      k.protocol = ip4->protocol;
-      if ((flags & FLOW_RECORD_L4) && k.protocol == IP_PROTOCOL_UDP)
-	{
-	  udp = (udp_header_t *) (ip4 + 1);
-	}
-      else if ((flags & FLOW_RECORD_L4) && k.protocol == IP_PROTOCOL_TCP)
-	tcp = (tcp_header_t *) (ip4 + 1);
-
-      octets = clib_net_to_host_u16 (ip4->length);
-    }
-  // clib_warning("if udp %d", udp);
 
   if (udp)
     {
@@ -884,7 +705,7 @@ delayprobe_export_entry (vlib_main_t *vm, delayprobe_entry_t *e)
   delayprobe_main_t *fm = &delayprobe_main;
   ipfix_exporter_t *exp = pool_elt_at_index (flow_report_main.exporters, 0);
   vlib_buffer_t *b0;
-  bool collect_ip4 = false, collect_ip6 = false, collect_srh = false;
+  bool collect_srh = false;
   delayprobe_variant_t which = e->key.which;
   delayprobe_record_t flags = fm->context[which].flags;
   u16 offset = fm->context[which].next_record_offset_per_worker[my_cpu_number];
@@ -899,26 +720,13 @@ delayprobe_export_entry (vlib_main_t *vm, delayprobe_entry_t *e)
 
   if (flags & FLOW_RECORD_L3)
     {
-      collect_ip4 = which == FLOW_VARIANT_L2_IP4 || which == FLOW_VARIANT_IP4;
-      collect_ip6 = which == FLOW_VARIANT_L2_IP6 || which == FLOW_VARIANT_IP6;
+      // collect_ip4 = which == FLOW_VARIANT_L2_IP4 || which == FLOW_VARIANT_IP4;
+      // collect_ip6 = which == FLOW_VARIANT_L2_IP6 || which == FLOW_VARIANT_IP6;
       collect_srh = which == FLOW_VARIANT_SRH_IP6;
     }
 
-  if (!collect_srh)
-    offset += delayprobe_common_add (b0, e, offset);
+  offset += delayprobe_srh_ip6_add (b0, e, offset);
 
-  if (flags & FLOW_RECORD_L2)
-    offset += delayprobe_l2_add (b0, e, offset);
-  if (collect_ip6)
-    offset += delayprobe_l3_ip6_add (b0, e, offset);
-  if (collect_ip4)
-    offset += delayprobe_l3_ip4_add (b0, e, offset);
-  if (collect_srh)
-    offset += delayprobe_srh_ip6_add (b0, e, offset);
-  if (flags & FLOW_RECORD_L4)
-    offset += delayprobe_l4_add (b0, e, offset);
-
-  // clib_warning("exporting %d", collect_srh);
   /* Reset per flow-export counters */
   e->packetcount = 0;
   e->octetcount = 0;
@@ -1065,59 +873,11 @@ delayprobe_node_fn (vlib_main_t *vm, vlib_node_runtime_t *node,
 }
 
 static uword
-delayprobe_input_ip4_node_fn (vlib_main_t *vm, vlib_node_runtime_t *node,
-			      vlib_frame_t *frame)
-{
-  return delayprobe_node_fn (vm, node, frame, FLOW_VARIANT_IP4,
-			     FLOW_DIRECTION_RX);
-}
-
-static uword
-delayprobe_input_ip6_node_fn (vlib_main_t *vm, vlib_node_runtime_t *node,
-			      vlib_frame_t *frame)
-{
-  return delayprobe_node_fn (vm, node, frame, FLOW_VARIANT_IP6,
-			     FLOW_DIRECTION_RX);
-}
-
-static uword
 delayprobe_input_srh_ip6_node_fn (vlib_main_t *vm, vlib_node_runtime_t *node,
 				  vlib_frame_t *frame)
 {
   return delayprobe_node_fn (vm, node, frame, FLOW_VARIANT_SRH_IP6,
 			     FLOW_DIRECTION_RX);
-}
-
-static uword
-delayprobe_input_l2_node_fn (vlib_main_t *vm, vlib_node_runtime_t *node,
-			     vlib_frame_t *frame)
-{
-  return delayprobe_node_fn (vm, node, frame, FLOW_VARIANT_L2,
-			     FLOW_DIRECTION_RX);
-}
-
-static uword
-delayprobe_output_ip4_node_fn (vlib_main_t *vm, vlib_node_runtime_t *node,
-			       vlib_frame_t *frame)
-{
-  return delayprobe_node_fn (vm, node, frame, FLOW_VARIANT_IP4,
-			     FLOW_DIRECTION_TX);
-}
-
-static uword
-delayprobe_output_ip6_node_fn (vlib_main_t *vm, vlib_node_runtime_t *node,
-			       vlib_frame_t *frame)
-{
-  return delayprobe_node_fn (vm, node, frame, FLOW_VARIANT_IP6,
-			     FLOW_DIRECTION_TX);
-}
-
-static uword
-delayprobe_output_l2_node_fn (vlib_main_t *vm, vlib_node_runtime_t *node,
-			      vlib_frame_t *frame)
-{
-  return delayprobe_node_fn (vm, node, frame, FLOW_VARIANT_L2,
-			     FLOW_DIRECTION_TX);
 }
 
 static inline void
@@ -1131,29 +891,9 @@ flush_record (delayprobe_variant_t which)
 }
 
 void
-delayprobe_flush_callback_ip4 (void)
-{
-  flush_record (FLOW_VARIANT_IP4);
-}
-
-void
-delayprobe_flush_callback_ip6 (void)
-{
-  flush_record (FLOW_VARIANT_IP6);
-}
-
-void
 delayprobe_flush_callback_srh_ip6 (void)
 {
   flush_record (FLOW_VARIANT_SRH_IP6);
-}
-
-void
-delayprobe_flush_callback_l2 (void)
-{
-  flush_record (FLOW_VARIANT_L2);
-  flush_record (FLOW_VARIANT_L2_IP4);
-  flush_record (FLOW_VARIANT_L2_IP6);
 }
 
 static void
@@ -1256,29 +996,6 @@ delayprobe_walker_process (vlib_main_t *vm, vlib_node_runtime_t *rt,
   return 0;
 }
 
-/* *INDENT-OFF* */
-VLIB_REGISTER_NODE (delayprobe_input_ip4_node) = {
-  .function = delayprobe_input_ip4_node_fn,
-  .name = "delayprobe-input-ip4",
-  .vector_size = sizeof (u32),
-  .format_trace = format_delayprobe_trace,
-  .type = VLIB_NODE_TYPE_INTERNAL,
-  .n_errors = ARRAY_LEN (delayprobe_error_strings),
-  .error_strings = delayprobe_error_strings,
-  .n_next_nodes = delayprobe_N_NEXT,
-  .next_nodes = delayprobe_NEXT_NODES,
-};
-VLIB_REGISTER_NODE (delayprobe_input_ip6_node) = {
-  .function = delayprobe_input_ip6_node_fn,
-  .name = "delayprobe-input-ip6",
-  .vector_size = sizeof (u32),
-  .format_trace = format_delayprobe_trace,
-  .type = VLIB_NODE_TYPE_INTERNAL,
-  .n_errors = ARRAY_LEN (delayprobe_error_strings),
-  .error_strings = delayprobe_error_strings,
-  .n_next_nodes = delayprobe_N_NEXT,
-  .next_nodes = delayprobe6_NEXT_NODES,
-};
 VLIB_REGISTER_NODE (delayprobe_input_srh_ip6_node) = {
   .function = delayprobe_input_srh_ip6_node_fn,
   .name = "delayprobe-input-srh-ip6",
@@ -1290,50 +1007,7 @@ VLIB_REGISTER_NODE (delayprobe_input_srh_ip6_node) = {
   .n_next_nodes = delayprobe_N_NEXT,
   .next_nodes = delayprobe6_NEXT_NODES,
 };
-VLIB_REGISTER_NODE (delayprobe_input_l2_node) = {
-  .function = delayprobe_input_l2_node_fn,
-  .name = "delayprobe-input-l2",
-  .vector_size = sizeof (u32),
-  .format_trace = format_delayprobe_trace,
-  .type = VLIB_NODE_TYPE_INTERNAL,
-  .n_errors = ARRAY_LEN (delayprobe_error_strings),
-  .error_strings = delayprobe_error_strings,
-  .n_next_nodes = delayprobe_N_NEXT,
-  .next_nodes = delayprobe_NEXT_NODES,
-};
-VLIB_REGISTER_NODE (delayprobe_output_ip4_node) = {
-  .function = delayprobe_output_ip4_node_fn,
-  .name = "delayprobe-output-ip4",
-  .vector_size = sizeof (u32),
-  .format_trace = format_delayprobe_trace,
-  .type = VLIB_NODE_TYPE_INTERNAL,
-  .n_errors = ARRAY_LEN (delayprobe_error_strings),
-  .error_strings = delayprobe_error_strings,
-  .n_next_nodes = delayprobe_N_NEXT,
-  .next_nodes = delayprobe_NEXT_NODES,
-};
-VLIB_REGISTER_NODE (delayprobe_output_ip6_node) = {
-  .function = delayprobe_output_ip6_node_fn,
-  .name = "delayprobe-output-ip6",
-  .vector_size = sizeof (u32),
-  .format_trace = format_delayprobe_trace,
-  .type = VLIB_NODE_TYPE_INTERNAL,
-  .n_errors = ARRAY_LEN (delayprobe_error_strings),
-  .error_strings = delayprobe_error_strings,
-  .n_next_nodes = delayprobe_N_NEXT,
-  .next_nodes = delayprobe6_NEXT_NODES,
-};
-VLIB_REGISTER_NODE (delayprobe_output_l2_node) = {
-  .function = delayprobe_output_l2_node_fn,
-  .name = "delayprobe-output-l2",
-  .vector_size = sizeof (u32),
-  .format_trace = format_delayprobe_trace,
-  .type = VLIB_NODE_TYPE_INTERNAL,
-  .n_errors = ARRAY_LEN (delayprobe_error_strings),
-  .error_strings = delayprobe_error_strings,
-  .n_next_nodes = delayprobe_N_NEXT,
-  .next_nodes = delayprobe_NEXT_NODES,
-};
+
 VLIB_REGISTER_NODE (delayprobe_walker_node) = {
   .function = delayprobe_walker_process,
   .name = "delayprobe-walker",
