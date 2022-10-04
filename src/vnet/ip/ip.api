@@ -767,6 +767,7 @@ autoreply define ioam_enable
   bool analyse;
   bool pot_enable;
   bool trace_enable;
+  vl_api_ip6_address_t dst_addr;
   u32 node_id;
 };
 

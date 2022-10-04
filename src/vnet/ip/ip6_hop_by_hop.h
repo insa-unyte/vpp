@@ -46,7 +46,7 @@ typedef struct
 } ip6_local_hop_by_hop_runtime_t;
 
 typedef struct
-{
+{ 
   /* The current rewrite we're using */
   u8 *rewrite;
 
@@ -63,6 +63,11 @@ typedef struct
   u32 unix_time_0;
   f64 vlib_time_0;
 
+  /* End of IOAM tunnel */
+  ip6_address_t dst_addr;
+
+  /* Source of IOAM tunnel */
+  ip6_address_t src_addr;
 
   /* Trace option */
   u8 has_trace_option;
@@ -87,7 +92,7 @@ typedef struct
   int (*config_handler[MAX_IP6_HBH_OPTION]) (void *data, u8 disable);
 
   /* Array of function pointers to handle hbh options being used with classifier */
-    u32 (*flow_handler[MAX_IP6_HBH_OPTION]) (u32 flow_ctx, u8 add);
+  u32 (*flow_handler[MAX_IP6_HBH_OPTION]) (u32 flow_ctx, u8 add);
   flow_data_t *flows;
 
   ip6_local_hop_by_hop_runtime_t *ip6_local_hbh_runtime;
@@ -102,7 +107,8 @@ extern ip6_hop_by_hop_ioam_main_t ip6_hop_by_hop_ioam_main;
 extern clib_error_t *ip6_ioam_enable (int has_trace_option,
 				      int has_pot_option,
 				      int has_seqno_option,
-				      int has_analyse_option);
+				      int has_analyse_option,
+              ip6_address_t* dst_addr);
 
 extern int ip6_ioam_set_destination (ip6_address_t * addr, u32 mask_width,
 				     u32 vrf_id, int is_add, int is_pop,
@@ -227,13 +233,17 @@ ioam_flow_add (u8 encap, u8 * flow_name)
   strncpy ((char *) flow->flow_name, (char *) flow_name, 31);
 
   if (!encap)
+  {
     IOAM_SET_DECAP (index);
-
+  }
+    
   for (i = 0; i < 255; i++)
+  {
+    if (hm->flow_handler[i])
     {
-      if (hm->flow_handler[i])
-	flow->ctx[i] = hm->flow_handler[i] (index, 1);
+      flow->ctx[i] = hm->flow_handler[i] (index, 1);
     }
+  }
   return (index);
 }
 
@@ -252,24 +262,26 @@ ip6_hbh_get_option (ip6_hop_by_hop_header_t * hbh0, u8 option_to_search)
 
   /* Scan the set of h-b-h options, process ones that we understand */
   while (opt0 < limit0)
+  {
+    type0 = opt0->type;
+    switch (type0)
     {
-      type0 = opt0->type;
-      switch (type0)
-	{
-	case 0:		/* Pad1 */
-	  opt0 = (ip6_hop_by_hop_option_t *) ((u8 *) opt0) + 1;
-	  continue;
-	case 1:		/* PadN */
-	  break;
-	default:
-	  if (type0 == option_to_search)
-	    return opt0;
-	  break;
-	}
-      opt0 =
-	(ip6_hop_by_hop_option_t *) (((u8 *) opt0) + opt0->length +
-				     sizeof (ip6_hop_by_hop_option_t));
+      case 0:		/* Pad1 */
+        opt0 = (ip6_hop_by_hop_option_t *) ((u8 *) opt0) + 1;
+        continue;
+      case 1:		/* PadN */
+        break;
+      default:
+        if (type0 == option_to_search)
+        {
+          return opt0;
+        }
+        break;
     }
+    opt0 =
+	      (ip6_hop_by_hop_option_t *) (((u8 *) opt0) + opt0->length +
+				              sizeof (ip6_hop_by_hop_option_t));
+  }
   return NULL;
 }
 

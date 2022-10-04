@@ -1442,7 +1442,7 @@ vl_api_ioam_enable_t_handler (vl_api_ioam_enable_t * mp)
   /* Ignoring the profile id as currently a single profile
    * is supported */
   error = ip6_ioam_enable (mp->trace_enable, mp->pot_enable,
-			   mp->seqno, mp->analyse);
+			   mp->seqno, mp->analyse, (ip6_address_t *) mp->dst_addr);
   if (error)
     {
       clib_error_report (error);

@@ -15,6 +15,7 @@
 #ifndef __included_ip6_hop_by_hop_packet_h__
 #define __included_ip6_hop_by_hop_packet_h__
 
+// This is directly from the IPv6 hop-by-hop extension header
 typedef struct
 {
   /* Protocol for next header */
@@ -24,8 +25,10 @@ typedef struct
    * not including the first 8 octets
    */
   u8 length;
+  u8 padding[2];
 } ip6_hop_by_hop_header_t;
 
+// This is what goes in the "Option Data & Padding" of the IPv6 hop-by-hop extension header
 typedef struct
 {
   /* Option Type */
@@ -38,12 +41,15 @@ typedef struct
   u8 type;
   /* Length in octets of the option data field */
   u8 length;
+  u8 reserved;
+  /* Prealloc, incremental, pot, e2e */
+  u8 ioam_type;
 } ip6_hop_by_hop_option_t;
 
 /* $$$$ IANA banana constants */
-#define HBH_OPTION_TYPE_IOAM_TRACE_DATA_LIST 59	/* Third highest bit set (change en-route) */
-#define HBH_OPTION_TYPE_IOAM_PROOF_OF_TRANSIT 60	/* Third highest bit set (change en-route) */
-#define HBH_OPTION_TYPE_IOAM_EDGE_TO_EDGE 29
+#define HBH_OPTION_TYPE_IOAM_TRACE_DATA_LIST 49	/* Third highest bit set (change en-route) */
+#define HBH_OPTION_TYPE_IOAM_PROOF_OF_TRANSIT 50	/* Third highest bit set (change en-route) */
+#define HBH_OPTION_TYPE_IOAM_EDGE_TO_EDGE 17
 
 #endif /* __included_ip6_hop_by_hop_packet_h__ */
 
