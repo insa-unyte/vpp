@@ -56,6 +56,12 @@ VNET_FEATURE_INIT (delayprobe_input_ip6_srh_multicast, static) = {
   .node_name = "delayprobe-input-srh-ip6",
   .runs_before = VNET_FEATURES ("ip6-mfib-forward-lookup"),
 };
+
+VNET_FEATURE_INIT (flowprobe_output_ip6_srh, static) = {
+  .arc_name = "ip6-output",
+  .node_name = "delayprobe-output-srh-ip6",
+  .runs_before = VNET_FEATURES ("interface-output"),
+};
 /* *INDENT-ON* */
 
 /* Macro to finish up custom dump fns */
@@ -69,7 +75,7 @@ VNET_FEATURE_INIT (delayprobe_input_ip6_srh_multicast, static) = {
 static inline ipfix_field_specifier_t *
 delayprobe_template_ip6_srh_fields (ipfix_field_specifier_t *f)
 {
-#define delayprobe_template_ip6_srh_field_count() 4
+#define delayprobe_template_ip6_srh_field_count() 5
   /* flow sourceIpv6Address, TLV type 27, 16 octets */
   f->e_id_length =
     ipfix_e_id_length (0 /* enterprise */, sourceIPv6Address, 16);
@@ -78,6 +84,11 @@ delayprobe_template_ip6_srh_fields (ipfix_field_specifier_t *f)
   f->e_id_length =
     ipfix_e_id_length (0 /* enterprise */, destinationIPv6Address, 16);
   f++;
+
+  /* flowDirection, TLV type 61, u8 */
+  f->e_id_length = ipfix_e_id_length (0 /* enterprise */, flowDirection, 1);
+  f++;
+
   /* packetDeltaCount, TLV type 2, u64 */
   f->e_id_length = ipfix_e_id_length (0 /* enterprise */, packetDeltaCount, 8);
   f++;
@@ -362,7 +373,7 @@ delayprobe_interface_add_del_feature (delayprobe_main_t *fm, u32 sw_if_index,
     {
       if (which == FLOW_VARIANT_SRH_IP6)
 	{
-	  vnet_feature_enable_disable ("ip6-output", "delayprobe-output-ip6",
+	  vnet_feature_enable_disable ("ip6-output", "delayprobe-output-srh-ip6",
 				       sw_if_index, is_add, 0, 0);
 	}
     }
@@ -382,8 +393,9 @@ delayprobe_interface_add_del_feature (delayprobe_main_t *fm, u32 sw_if_index,
  * @brief API message handler
  * @param mp vl_api_delayprobe_tx_interface_add_del_t * mp the api message
  */
-void vl_api_delayprobe_tx_interface_add_del_t_handler
-  (vl_api_delayprobe_tx_interface_add_del_t * mp)
+void
+vl_api_delayprobe_tx_interface_add_del_t_handler (
+  vl_api_delayprobe_tx_interface_add_del_t *mp)
 {
   delayprobe_main_t *fm = &delayprobe_main;
   vl_api_delayprobe_tx_interface_add_del_reply_t *rmp;
@@ -407,7 +419,7 @@ void vl_api_delayprobe_tx_interface_add_del_t_handler
     }
 
   rv = delayprobe_interface_add_del_feature (fm, sw_if_index, mp->which,
-					    FLOW_DIRECTION_TX, mp->is_add);
+					     FLOW_DIRECTION_TX, mp->is_add);
 
 out:
   BAD_SW_IF_INDEX_LABEL;
@@ -419,7 +431,7 @@ void
 vl_api_delayprobe_interface_add_del_t_handler (
   vl_api_delayprobe_interface_add_del_t *mp)
 {
-  clib_warning("NEVER CALLED");
+  clib_warning ("NEVER CALLED");
   delayprobe_main_t *fm = &delayprobe_main;
   vl_api_delayprobe_interface_add_del_reply_t *rmp;
   u32 sw_if_index;
@@ -481,7 +493,7 @@ vl_api_delayprobe_interface_add_del_t_handler (
     }
 
   rv = delayprobe_interface_add_del_feature (fm, sw_if_index, which, direction,
-					    is_add);
+					     is_add);
 
 out:
   BAD_SW_IF_INDEX_LABEL;
@@ -491,7 +503,7 @@ out:
 
 static void
 send_delayprobe_interface_details (u32 sw_if_index, u8 which, u8 direction,
-				  vl_api_registration_t *reg, u32 context)
+				   vl_api_registration_t *reg, u32 context)
 {
   delayprobe_main_t *fm = &delayprobe_main;
   vl_api_delayprobe_interface_details_t *rmp = 0;
@@ -600,8 +612,7 @@ vl_api_delayprobe_params_t_handler (vl_api_delayprobe_params_t *mp)
   vl_api_delayprobe_params_reply_t *rmp;
   int rv = 0;
 
-  rv = delayprobe_params (fm,
-			  clib_net_to_host_u32 (mp->active_timer),
+  rv = delayprobe_params (fm, clib_net_to_host_u32 (mp->active_timer),
 			  clib_net_to_host_u32 (mp->passive_timer));
 
   REPLY_MACRO (VL_API_DELAYPROBE_PARAMS_REPLY);
@@ -631,8 +642,7 @@ vl_api_delayprobe_set_params_t_handler (vl_api_delayprobe_set_params_t *mp)
       goto out;
     }
 
-  rv = delayprobe_params (fm, active_timer,
-			  passive_timer);
+  rv = delayprobe_params (fm, active_timer, passive_timer);
   if (rv == VNET_API_ERROR_UNSUPPORTED)
     clib_warning (
       "Cannot change params when feature is enabled on some interfaces");
@@ -795,7 +805,8 @@ delayprobe_interface_add_del_feature_command_fn (vlib_main_t *vm,
       else if (unformat (input, "%U", unformat_vnet_sw_interface,
 			 fm->vnet_main, &sw_if_index))
 	;
-      else if(unformat (input, "srh"));
+      else if (unformat (input, "srh"))
+	;
       else if (unformat (input, "rx"))
 	direction = FLOW_DIRECTION_RX;
       else if (unformat (input, "tx"))
@@ -898,7 +909,7 @@ delayprobe_params_command_fn (vlib_main_t *vm, unformat_input_t *input,
 	    if (unformat (input, "l3"))
 	      break;
 	  }
-    else
+      else
 	break;
     }
 

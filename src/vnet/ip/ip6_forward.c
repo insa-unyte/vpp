@@ -1130,7 +1130,8 @@ ip6_tcp_udp_icmp_compute_checksum (vlib_main_t * vm, vlib_buffer_t * p0,
       u32 skip_bytes;
       ip6_hop_by_hop_ext_t *ext_hdr =
 	(ip6_hop_by_hop_ext_t *) data_this_buffer;
-
+		clib_warning("NEXT: %u", ext_hdr->next_hdr);
+		
       /* validate really icmp6 next */
       ASSERT ((ext_hdr->next_hdr == IP_PROTOCOL_ICMP6)
 	      || (ext_hdr->next_hdr == IP_PROTOCOL_UDP));
