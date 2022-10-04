@@ -339,6 +339,7 @@ ip6_hbh_ioam_trace_data_list_handler (vlib_buffer_t * b, ip6_header_t * ip, ip6_
   u32 *elt;
   int rv = 0;
   trace_profile *profile = NULL;
+  af_packet_queue_t *tx_queue = 0;
 
   profile = trace_profile_find ();
 
@@ -471,10 +472,14 @@ ip6_hbh_ioam_trace_data_list_handler (vlib_buffer_t * b, ip6_header_t * ip, ip6_
         /* Maybe there's a better way to obtain apif from hw_if_index */
         vnet_hw_interface_t *hw = vnet_get_hw_interface (hm->vnet_main, txid);
         af_packet_if_t *apif = pool_elt_at_index (am->interfaces, hw->dev_instance);
-        u8 *tx_block_start = apif->tx_ring;
+        tx_queue = apif->tx_queues;
+
+        // u8 *tx_block_start = apif->tx_ring;
+        u8 *tx_block_start = tx_queue->tx_ring[0];
+
         struct tpacket2_hdr *tph_tx = (struct tpacket2_hdr *)tx_block_start;
-        u32 frame_size = apif->tx_req->tp_frame_size;
-        u32 frame_num = apif->tx_req->tp_frame_nr;
+        u32 frame_size = tx_queue->tx_req->tp_frame_size;
+        u32 frame_num = tx_queue->tx_req->tp_frame_nr;
         do
         {
           if (tph_tx->tp_status == TP_STATUS_AVAILABLE)
