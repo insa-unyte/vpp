@@ -102,6 +102,7 @@ typedef struct __attribute__ ((aligned (8))) {
   u8 srh_flags;
   u16 srh_tag;
   ip46_address_t srh_segment_list[FLOW_SRH_MAX_SID_LIST];
+  u32 srh_segment_list_len;
 } flowprobe_key_t;
 /* *INDENT-ON* */
 

@@ -289,10 +289,33 @@ flowprobe_srh_ip6_add (vlib_buffer_t * to_b, flowprobe_entry_t * e, u16 offset)
   clib_memcpy_fast (to_b->data + offset, &e->key.srh_flags, sizeof(u16));
   offset += sizeof(u16);
 
-  /* srh segment list */
+  /* srh segment list section */
   clib_memcpy_fast (to_b->data + offset, &e->key.srh_segment_list,
 		    sizeof (ip6_address_t) * FLOW_SRH_MAX_SID_LIST);
   offset += sizeof (ip6_address_t) * FLOW_SRH_MAX_SID_LIST;
+
+  /* srh segment list basicList */
+  u16 srh_basiclist_len = 5 + (e->key.srh_segment_list_len * sizeof(ip6_address_t));
+  u8 *srh_ipfix_basiclist = to_b->data + offset;
+
+  if (srh_basiclist_len > 255) {
+    srh_ipfix_basiclist[0] = 255; // variable length
+    srh_ipfix_basiclist[1] = srh_basiclist_len >> 8;
+    srh_ipfix_basiclist[2] = srh_basiclist_len;
+    offset += 3;
+  } else {
+    srh_ipfix_basiclist[0] = srh_basiclist_len;
+    offset += 1;
+  }
+  srh_ipfix_basiclist = to_b->data + offset;
+  srh_ipfix_basiclist[0] = 4; // semantic ordered
+  srh_ipfix_basiclist[1] = srhSegmentIPv6 >> 8;
+  srh_ipfix_basiclist[2] = (u8) srhSegmentIPv6;
+  srh_ipfix_basiclist[3] = sizeof (ip6_address_t) >> 8;
+  srh_ipfix_basiclist[4] = sizeof (ip6_address_t);
+  clib_memcpy_fast (srh_ipfix_basiclist + 5, &e->key.srh_segment_list,
+		    sizeof (ip6_address_t) * e->key.srh_segment_list_len);
+  offset += 5 + sizeof (ip6_address_t) * e->key.srh_segment_list_len;
 
   /* flow src address */
   clib_memcpy_fast (to_b->data + offset, &e->key.src_address,
@@ -539,10 +562,6 @@ add_to_flow_record_state (vlib_main_t *vm, vlib_node_runtime_t *node,
       {
 
         ip6_sr_header_t *sr0 = (ip6_sr_header_t *) (ip6 + 1);
-        // clib_warning("SRH IP: %U->%U", format_ip6_address, &ip6->src_address, format_ip6_address, &ip6->dst_address);
-        // clib_warning("segments_left: %u", sr0->segments_left);
-        // clib_warning("flags: %u", sr0->flags);
-        // clib_warning("tag: %u", sr0->tag);
         u32 sr_len = ip6_ext_header_len (sr0);
         // SRH src & dst
         k.srh_src_address.as_u64[0] = ip6->src_address.as_u64[0];
@@ -556,13 +575,16 @@ add_to_flow_record_state (vlib_main_t *vm, vlib_node_runtime_t *node,
         if (nb_segments > FLOW_SRH_MAX_SID_LIST)
           nb_segments = FLOW_SRH_MAX_SID_LIST;
 
-        clib_warning("NB_segments: %u", nb_segments);
-        for (int i = 0; i < nb_segments; i++)
-        {
-          clib_warning("segment[%u]: %U", i, format_ip6_address, &sr0->segments[i]);
-          k.srh_segment_list[i].as_u64[0] = sr0->segments[i].as_u64[0];
-          k.srh_segment_list[i].as_u64[1] = sr0->segments[i].as_u64[1];
-        }
+        k.srh_segment_list_len = nb_segments;
+        clib_warning("srh_segment_list_len: %u", nb_segments);
+        clib_memcpy_fast (k.srh_segment_list, &sr0->segments, nb_segments * sizeof(ip6_address_t));
+
+        // for (int i = 0; i < nb_segments; i++)
+        // {
+        //   clib_warning("segment[%u]: %U", i, format_ip6_address, &sr0->segments[i]);
+        //   k.srh_segment_list[i].as_u64[0] = sr0->segments[i].as_u64[0];
+        //   k.srh_segment_list[i].as_u64[1] = sr0->segments[i].as_u64[1];
+        // }
 
         if (sr0->protocol == 41)
         {
