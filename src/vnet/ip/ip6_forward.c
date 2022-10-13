@@ -2712,8 +2712,10 @@ VLIB_NODE_FN (ip6_hop_by_hop_node) (vlib_main_t * vm,
 	  /* Has the classifier flagged this buffer for special treatment? */
 	  if (PREDICT_FALSE
 	      ((error0 == 0)
-	       && (vnet_buffer (b0)->l2_classify.opaque_index & OI_DECAP)))
+	       && (vnet_buffer (b0)->l2_classify.opaque_index & OI_DECAP))){
 	    next0 = hm->next_override;
+			clib_warning("OI_DECAP3, %u - %u", error0 == 0, vnet_buffer (b0)->l2_classify.opaque_index);
+		   }
 
 	  if (PREDICT_FALSE (b0->flags & VLIB_BUFFER_IS_TRACED))
 	    {
@@ -2771,6 +2773,7 @@ VLIB_INIT_FUNCTION (ip6_hop_by_hop_init);
 void
 ip6_hbh_set_next_override (uword next)
 {
+  clib_warning("override to %u", next);
   ip6_hop_by_hop_main_t *hm = &ip6_hop_by_hop_main;
 
   hm->next_override = next;

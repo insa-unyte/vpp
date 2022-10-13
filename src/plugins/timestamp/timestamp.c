@@ -173,5 +173,5 @@ VNET_FEATURE_INIT (timestamp_egress, static) =
 {
   .arc_name = "interface-output",
   .node_name = "timestamp-egress",
-  .runs_before = VNET_FEATURES ("interface-tx"),
+  .runs_before = VNET_FEATURES ("interface-output-arc-end"),
 };

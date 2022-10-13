@@ -362,7 +362,7 @@ VLIB_NODE_FN (ip6_add_hop_by_hop_node) (vlib_main_t * vm,
         }
         else
         {
-          vlib_buffer_advance (b0, -outer_header_length);
+          vlib_buffer_advance (b0, -(word) outer_header_length);
           new_ip0 = vlib_buffer_get_current (b0);
         }
 
@@ -402,7 +402,7 @@ VLIB_NODE_FN (ip6_add_hop_by_hop_node) (vlib_main_t * vm,
         }
         else
         {
-          vlib_buffer_advance (b0, -rewrite_length);
+          vlib_buffer_advance (b0, -(word) rewrite_length);
           new_ip0 = vlib_buffer_get_current (b0);
         }
 
@@ -439,7 +439,7 @@ VLIB_NODE_FN (ip6_add_hop_by_hop_node) (vlib_main_t * vm,
         }
         else
         {
-          vlib_buffer_advance (b1, -outer_header_length);
+          vlib_buffer_advance (b1, -(word) outer_header_length);
           new_ip1 = vlib_buffer_get_current (b1);
         }
 
@@ -479,7 +479,7 @@ VLIB_NODE_FN (ip6_add_hop_by_hop_node) (vlib_main_t * vm,
         }
         else
         {
-          vlib_buffer_advance (b1, -rewrite_length);
+          vlib_buffer_advance (b1, -(word) rewrite_length);
           new_ip1 = vlib_buffer_get_current (b1);
         }
 
@@ -599,7 +599,7 @@ VLIB_NODE_FN (ip6_add_hop_by_hop_node) (vlib_main_t * vm,
         }
         else
         {
-          vlib_buffer_advance (b0, -outer_header_length);
+          vlib_buffer_advance (b0, -(word) outer_header_length);
           new_ip0 = vlib_buffer_get_current (b0);
         }
 
@@ -639,7 +639,7 @@ VLIB_NODE_FN (ip6_add_hop_by_hop_node) (vlib_main_t * vm,
         }
         else
         {
-          vlib_buffer_advance (b0, -rewrite_length);
+          vlib_buffer_advance (b0, -(word) rewrite_length);
           new_ip0 = vlib_buffer_get_current (b0);
         }
 
@@ -1610,7 +1610,8 @@ ip6_ioam_enable (int has_trace_option, int has_pot_option,
   ip6_hop_by_hop_ioam_main_t *hm = &ip6_hop_by_hop_ioam_main;
   rv = ip6_ioam_set_rewrite (&hm->rewrite, has_trace_option,
 			     has_pot_option, has_seqno_option);
-
+  clib_warning("Return value: %u", rv);
+  clib_warning("values %u %u %u", has_trace_option, has_pot_option, has_seqno_option);
   switch (rv)
   {
     case 0:
@@ -1620,8 +1621,10 @@ ip6_ioam_enable (int has_trace_option, int has_pot_option,
       u32 fib_index, sw_if_index;
       u32 table_id = 0;
       fib_index = ip6_fib_index_from_table_id (table_id);
+      clib_warning("Fib_index %u", fib_index);
       fib_node_index_t fib_entry_index = ip6_fib_table_lookup (fib_index, &hm->dst_addr, 128);
       sw_if_index = fib_entry_get_resolving_interface (fib_entry_index);
+      clib_warning("sw_if_index %u", sw_if_index);
 
       if (PREDICT_FALSE((~0 == fib_index) || (~0 == sw_if_index)))
         return clib_error_return_code (0, -1, 0, 
@@ -1725,7 +1728,7 @@ ip6_set_ioam_rewrite_command_fn (vlib_main_t * vm,
 /* *INDENT-OFF* */
 VLIB_CLI_COMMAND (ip6_set_ioam_rewrite_cmd, static) = {
   .path = "set ioam rewrite",
-  .short_help = "set ioam dst_addr <dest address> [trace] [pot] [seqno] [analyse]",
+  .short_help = "set ioam rewrite dst_addr <dest address> [trace] [pot] [seqno] [analyse]",
   .function = ip6_set_ioam_rewrite_command_fn,
 };
 /* *INDENT-ON* */
