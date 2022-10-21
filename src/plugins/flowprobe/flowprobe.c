@@ -185,7 +185,7 @@ flowprobe_template_ip6_srh_fields (ipfix_field_specifier_t * f)
   f++;
   /* srhSegmentIPv6ListSection, TLV type 505, N octets */
   f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
-				      srhSegmentIPv6ListSection, 16 * FLOW_SRH_MAX_SID_LIST); // limit FLOW_SRH_MAX_SID_LIST IPv6
+				      srhSegmentIPv6ListSection, 0xFFFF); // variable length
   f++;
   /* srhSegmentIPv6BasicList, TLV type 504, N octets */
   f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,

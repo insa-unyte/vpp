@@ -257,7 +257,6 @@ static inline u32
 flowprobe_srh_ip6_add (vlib_buffer_t * to_b, flowprobe_entry_t * e, u16 offset)
 {
   u16 start = offset;
-  // TODO: add srh into IPFIX set
 
   /* srh src address */
   clib_memcpy_fast (to_b->data + offset, &e->key.srh_src_address,
@@ -290,16 +289,27 @@ flowprobe_srh_ip6_add (vlib_buffer_t * to_b, flowprobe_entry_t * e, u16 offset)
   offset += sizeof(u16);
 
   /* srh segment list section */
+  u16 srh_seg_list_sec_len = (e->key.srh_segment_list_len * sizeof(ip6_address_t));
+  u8 *srh_ipfix_seglist_sec = to_b->data + offset;
+  if (srh_seg_list_sec_len > 255) {
+    srh_ipfix_seglist_sec[0] = 255; // variable length of more than 255
+    srh_ipfix_seglist_sec[1] = srh_seg_list_sec_len >> 8;
+    srh_ipfix_seglist_sec[2] = srh_seg_list_sec_len;
+    offset += 3;
+  } else {
+    srh_ipfix_seglist_sec[0] = srh_seg_list_sec_len;
+    offset += 1;
+  }
   clib_memcpy_fast (to_b->data + offset, &e->key.srh_segment_list,
-		    sizeof (ip6_address_t) * FLOW_SRH_MAX_SID_LIST);
-  offset += sizeof (ip6_address_t) * FLOW_SRH_MAX_SID_LIST;
+		    sizeof (ip6_address_t) * e->key.srh_segment_list_len);
+  offset += sizeof (ip6_address_t) * e->key.srh_segment_list_len;
 
   /* srh segment list basicList */
   u16 srh_basiclist_len = 5 + (e->key.srh_segment_list_len * sizeof(ip6_address_t));
   u8 *srh_ipfix_basiclist = to_b->data + offset;
 
   if (srh_basiclist_len > 255) {
-    srh_ipfix_basiclist[0] = 255; // variable length
+    srh_ipfix_basiclist[0] = 255; // variable length of more than 255
     srh_ipfix_basiclist[1] = srh_basiclist_len >> 8;
     srh_ipfix_basiclist[2] = srh_basiclist_len;
     offset += 3;
