@@ -50,7 +50,8 @@ typedef enum __attribute__ ((__packed__))
   FLOW_VARIANT_L2,
   FLOW_VARIANT_L2_IP4,
   FLOW_VARIANT_L2_IP6,
-  FLOW_VARIANT_SRH_IP6,
+  FLOW_VARIANT_SRH_BASICLIST_IP6,
+  FLOW_VARIANT_SRH_LISTSECTION_IP6,
   FLOW_N_VARIANTS,
 } flowprobe_variant_t;
 
@@ -182,7 +183,8 @@ extern vlib_node_registration_t flowprobe_walker_node;
 void flowprobe_flush_callback_ip4 (void);
 void flowprobe_flush_callback_ip6 (void);
 void flowprobe_flush_callback_l2 (void);
-void flowprobe_flush_callback_srh_ip6(void);
+void flowprobe_flush_callback_srh_basiclist_ip6(void);
+void flowprobe_flush_callback_srh_listsection_ip6(void);
 u8 *format_flowprobe_entry (u8 * s, va_list * args);
 
 #endif
