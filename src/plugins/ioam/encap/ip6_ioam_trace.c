@@ -265,12 +265,25 @@ ip6_hop_by_hop_ioam_trace_rewrite_handler (u8 * rewrite_string, u8 * rewrite_siz
 
   trace_option_elts = profile->num_elts;
   trace_data_size = fetch_trace_data_size (profile);
+  clib_warning("trace_data_size %u * %u = %u", trace_option_elts, trace_data_size, trace_option_elts * trace_data_size);
   trace_option = (ioam_trace_option_t *) rewrite_string;
 
   trace_option->hdr.type = HBH_OPTION_TYPE_IOAM_TRACE_DATA_LIST | HBH_OPTION_TYPE_DATA_CHANGE_ENROUTE;
   // LENGTH
   trace_option->hdr.length = sizeof(ioam_trace_hdr_t) + (trace_option_elts * trace_data_size) + 2; /* ip6_hop_by_hop_option_t: reserved and ioam_type */
-  trace_option->hdr.ioam_type = profile->option_type;
+  clib_warning("trace_option->hdr.length %u", trace_option->hdr.length);
+
+  trace_option->hdr.ioam_type = profile->option_type; // shouldn't it be IANA codepoints instead ?
+  clib_warning("option type: %u", profile->option_type);
+  if (profile->option_type == IOAM_OPTION_PREALLOC) 
+    trace_option->hdr.ioam_type = 0; // IANA codepoint for prealloc
+  else if (profile->option_type == IOAM_OPTION_INCREMENT)
+    trace_option->hdr.ioam_type = 1; // IANA codepoint for incremental
+  else if (profile->option_type == IOAM_OPTION_POT)
+    trace_option->hdr.ioam_type = 2; // IANA codepoint for POT
+  else if (profile->option_type == IOAM_OPTION_E2E)
+    trace_option->hdr.ioam_type = 3; // IANA codepoint for E2E
+
   // ioam_trace_hdr_t things
   trace_option->trace_hdr.namespace_id = clib_host_to_net_u16(profile->namespace_id);
   u16 node_len = trace_data_size >> 2; // In 4-octets
@@ -381,7 +394,7 @@ ip6_hbh_ioam_trace_data_list_handler (vlib_buffer_t * b, ip6_header_t * ip, ip6_
       */
     elt_index = data_list_elts_left * fetch_trace_data_size (profile) / 4;
     elt = &trace->trace_hdr.data_list[elt_index];
-
+    clib_warning("Total number nodes: %u - elts: %u", profile->num_elts, data_list_elts_left);
     // START writing the telemtry info
     u32 trace_type = IOAM_GET_TRACETYPE(trace->trace_hdr.trace_type);
 
@@ -431,7 +444,9 @@ ip6_hbh_ioam_trace_data_list_handler (vlib_buffer_t * b, ip6_header_t * ip, ip6_
     {
       /* Send least significant 32 bits */
       f64 time_sub_f64 = (f64) (((f64) hm->unix_time_0) + (vlib_time_now (hm->vlib_main) - hm->vlib_time_0));
-      time_u64.as_u64 = time_sub_f64 * trace_tsp_mul[profile->ts_format];
+      time_u64.as_u64 = time_sub_f64 * trace_tsp_mul[profile->ts_format]; // timestamp_seconds * 1000 (if ms)
+      clib_warning("ts format2: %llu", time_u64.as_u64);
+      clib_warning("ts format2: %llu %llu", time_u64.as_u32[0], time_u64.as_u32[1]);
       if(!time_u64.as_u32[0])
       {
         time_u64.as_u32[0] = IOAM_EMPTY_FIELD_U32;

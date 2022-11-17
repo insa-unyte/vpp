@@ -177,12 +177,10 @@ On the In-band OAM decapsulating node
 
    -  Example to decapsulate iOAM data for packets towards db06::06,
       configure classifier and enable it as an ACL as follows:
+::
 
    vpp# classify table miss-next node ip6-lookup mask l3 ip6 dst
-
-   vpp# classify session acl-hit-next node ip6-lookup table-index 0
-   match l3 ip6 dst db06::06 opaque-index 100
-
+   vpp# classify session acl-hit-next node ip6-lookup table-index 0 match l3 ip6 dst db06::06 opaque-index 100
    vpp# set int input acl intfc GigabitEthernet0/0/0 ip6-table 0
 
 -  Decapsulating node requires trace type, timestamp precision, node ID

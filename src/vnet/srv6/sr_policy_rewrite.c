@@ -51,6 +51,7 @@
 
 #include <vppinfra/error.h>
 #include <vppinfra/elog.h>
+#include <vnet/ip/ip6_hop_by_hop.h>
 
 /**
  * @brief SR policy rewrite trace
@@ -196,7 +197,7 @@ VLIB_CLI_COMMAND (set_sr_hop_limit_command, static) = {
  * @return precomputed rewrite string for encapsulation
  */
 static inline u8 *
-compute_rewrite_encaps (ip6_address_t *sl, u8 type)
+compute_rewrite_encaps (ip6_address_t *sl, u8 type, u8 *hop_by_hop_rewrite)
 {
   ip6_header_t *iph;
   ip6_sr_header_t *srh;
@@ -204,6 +205,7 @@ compute_rewrite_encaps (ip6_address_t *sl, u8 type)
   ip6_address_t *addrp, *this_address;
   u32 header_length = 0;
   u8 *rs = NULL;
+  ip6_hop_by_hop_header_t *hbh = NULL;
 
   header_length = 0;
   header_length += IPv6_DEFAULT_HEADER_LENGTH;
@@ -215,11 +217,22 @@ compute_rewrite_encaps (ip6_address_t *sl, u8 type)
     }
   else if (vec_len (sl) > 1)
     {
+		clib_warning("Lengths: hbh-rewrite %u ", vec_len(hop_by_hop_rewrite) );
+		hbh = (ip6_hop_by_hop_header_t *) hop_by_hop_rewrite;
+		clib_warning("Lengths: hbh-length %u", hbh->length);
       header_length += sizeof (ip6_sr_header_t);
+		clib_warning("Lengths: ip_srheader %u", sizeof (ip6_sr_header_t));
       header_length += vec_len (sl) * sizeof (ip6_address_t);
+		clib_warning("Lengths: vec_len (sl) %u", vec_len (sl));
+		clib_warning("Lengths: ip6 = %u - %u", vec_len (sl), vec_len (sl) * sizeof (ip6_address_t));
+	  header_length += vec_len(hop_by_hop_rewrite);
+	clib_warning("Total %u", header_length);
     }
 
   vec_validate (rs, header_length - 1);
+
+//   hbh = (ip6_hop_by_hop_header_t *) hop_by_hop_rewrite;
+//   hbh->length = vec_len(hop_by_hop_rewrite) - 1;
 
   iph = (ip6_header_t *) rs;
   iph->ip_version_traffic_class_and_flow_label =
@@ -258,14 +271,21 @@ compute_rewrite_encaps (ip6_address_t *sl, u8 type)
     }
   else if (vec_len (sl) > 1)
     {
-      srh = (ip6_sr_header_t *) (iph + 1);
-      iph->protocol = IP_PROTOCOL_IPV6_ROUTE;
+      iph->protocol = IP_PROTOCOL_IP6_HOP_BY_HOP_OPTIONS;
+
+	  hbh = (ip6_hop_by_hop_header_t *) (iph + 1);
+	  clib_memcpy_fast (hbh, hop_by_hop_rewrite, vec_len(hop_by_hop_rewrite));
+	  hbh->protocol = IP_PROTOCOL_IPV6_ROUTE;
+	//   hbh->length = vec_len(hop_by_hop_rewrite) - 1;
+
+	  srh = (ip6_sr_header_t *) ((u8 *)hbh + vec_len(hop_by_hop_rewrite));
       srh->protocol = IP_PROTOCOL_IPV6;
       srh->type = ROUTING_HEADER_TYPE_SR;
       srh->segments_left = vec_len (sl) - 1;
       srh->last_entry = vec_len (sl) - 1;
-      srh->length = ((sizeof (ip6_sr_header_t) +
-		      (vec_len (sl) * sizeof (ip6_address_t))) / 8) - 1;
+      srh->length = ((sizeof (ip6_sr_header_t) + (vec_len (sl) * sizeof (ip6_address_t))) / 8) - 1;
+    //   srh->length = ((sizeof (ip6_sr_header_t) + (vec_len (sl) * sizeof (ip6_address_t)))) - 1;
+	  clib_warning("SRH_len = %u = (%u + %u) /8 - 1", srh->length, sizeof (ip6_sr_header_t), (vec_len (sl) * sizeof (ip6_address_t)));
       srh->flags = 0x00;
       srh->tag = 0x0000;
       addrp = srh->segments + vec_len (sl) - 1;
@@ -378,6 +398,11 @@ static inline ip6_sr_sl_t *
 create_sl (ip6_sr_policy_t * sr_policy, ip6_address_t * sl, u32 weight,
 	   u8 is_encap)
 {
+  ip6_hop_by_hop_ioam_main_t *hm = &ip6_hop_by_hop_ioam_main;
+  u8 *rewrite = hm->rewrite;
+  u32 rewrite_length = vec_len (rewrite); // 80 bytes
+  clib_warning("HOP BY HOP: %u", rewrite_length);
+
   ip6_sr_main_t *sm = &sr_main;
   ip6_sr_sl_t *segment_list;
   sr_policy_fn_registration_t *plugin = 0;
@@ -399,7 +424,8 @@ create_sl (ip6_sr_policy_t * sr_policy, ip6_address_t * sl, u32 weight,
 
   if (is_encap)
     {
-      segment_list->rewrite = compute_rewrite_encaps (sl, sr_policy->type);
+	  clib_warning("Creating rewrite_srv6");
+      segment_list->rewrite = compute_rewrite_encaps (sl, sr_policy->type, rewrite);
       segment_list->rewrite_bsid = segment_list->rewrite;
     }
   else
@@ -1528,6 +1554,7 @@ sr_policy_rewrite_encaps (vlib_main_t * vm, vlib_node_runtime_t * node,
 	  sl0 =
 	    pool_elt_at_index (sm->sid_lists,
 			       vnet_buffer (b0)->ip.adj_index[VLIB_TX]);
+	  clib_warning("SIZES: %u - %u", b0->current_data + VLIB_BUFFER_PRE_DATA_SIZE, vec_len (sl0->rewrite));
 	  ASSERT (b0->current_data + VLIB_BUFFER_PRE_DATA_SIZE >=
 		  vec_len (sl0->rewrite));
 

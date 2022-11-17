@@ -52,6 +52,7 @@ ioam_export_ip6_enable_disable (ioam_export_main_t * em,
     {
       if (1 == ioam_export_header_create (em, collector_address, src_address))
 	{
+    clib_warning("Setting ioam ipfix");
 	  ioam_export_thread_buffer_init (em, vm);
 	  ip6_hbh_set_next_override (em->my_hbh_slot);
 	  /* Turn on the export buffer check process */

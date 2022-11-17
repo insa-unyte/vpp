@@ -101,7 +101,6 @@ VNET_FEATURE_INIT (flowprobe_output_ip6, static) = {
   .arc_name = "ip6-output",
   .node_name = "flowprobe-output-ip6",
   .runs_before = VNET_FEATURES ("interface-output"),
-  // .runs_after = VNET_FEATURES ("sr-pl-rewrite-encaps"),
 };
 
 VNET_FEATURE_INIT (flowprobe_output_l2, static) = {
