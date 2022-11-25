@@ -197,7 +197,7 @@ VLIB_CLI_COMMAND (set_sr_hop_limit_command, static) = {
  * @return precomputed rewrite string for encapsulation
  */
 static inline u8 *
-compute_rewrite_encaps (ip6_address_t *sl, u8 type, u8 *hop_by_hop_rewrite)
+compute_rewrite_encaps (ip6_address_t *sl, u8 type, u8 *ioam_hbh_trace_rewrite)
 {
   ip6_header_t *iph;
   ip6_sr_header_t *srh;
@@ -217,22 +217,12 @@ compute_rewrite_encaps (ip6_address_t *sl, u8 type, u8 *hop_by_hop_rewrite)
     }
   else if (vec_len (sl) > 1)
     {
-		clib_warning("Lengths: hbh-rewrite %u ", vec_len(hop_by_hop_rewrite) );
-		hbh = (ip6_hop_by_hop_header_t *) hop_by_hop_rewrite;
-		clib_warning("Lengths: hbh-length %u", hbh->length);
       header_length += sizeof (ip6_sr_header_t);
-		clib_warning("Lengths: ip_srheader %u", sizeof (ip6_sr_header_t));
       header_length += vec_len (sl) * sizeof (ip6_address_t);
-		clib_warning("Lengths: vec_len (sl) %u", vec_len (sl));
-		clib_warning("Lengths: ip6 = %u - %u", vec_len (sl), vec_len (sl) * sizeof (ip6_address_t));
-	  header_length += vec_len(hop_by_hop_rewrite);
-	clib_warning("Total %u", header_length);
+	  header_length += vec_len(ioam_hbh_trace_rewrite);
     }
 
   vec_validate (rs, header_length - 1);
-
-//   hbh = (ip6_hop_by_hop_header_t *) hop_by_hop_rewrite;
-//   hbh->length = vec_len(hop_by_hop_rewrite) - 1;
 
   iph = (ip6_header_t *) rs;
   iph->ip_version_traffic_class_and_flow_label =
@@ -271,21 +261,23 @@ compute_rewrite_encaps (ip6_address_t *sl, u8 type, u8 *hop_by_hop_rewrite)
     }
   else if (vec_len (sl) > 1)
     {
-      iph->protocol = IP_PROTOCOL_IP6_HOP_BY_HOP_OPTIONS;
+	  if (vec_len(ioam_hbh_trace_rewrite) > 0)
+	  {
+      	iph->protocol = IP_PROTOCOL_IP6_HOP_BY_HOP_OPTIONS;
+		hbh = (ip6_hop_by_hop_header_t *) (iph + 1);
+		clib_memcpy_fast (hbh, ioam_hbh_trace_rewrite, vec_len(ioam_hbh_trace_rewrite));
+		hbh->protocol = IP_PROTOCOL_IPV6_ROUTE;
+	  	srh = (ip6_sr_header_t *) ((u8 *)hbh + vec_len(ioam_hbh_trace_rewrite));
+	  } else {
+      	iph->protocol = IP_PROTOCOL_IPV6_ROUTE;
+	  	srh = (ip6_sr_header_t *) (iph + 1);
+	  }
 
-	  hbh = (ip6_hop_by_hop_header_t *) (iph + 1);
-	  clib_memcpy_fast (hbh, hop_by_hop_rewrite, vec_len(hop_by_hop_rewrite));
-	  hbh->protocol = IP_PROTOCOL_IPV6_ROUTE;
-	//   hbh->length = vec_len(hop_by_hop_rewrite) - 1;
-
-	  srh = (ip6_sr_header_t *) ((u8 *)hbh + vec_len(hop_by_hop_rewrite));
       srh->protocol = IP_PROTOCOL_IPV6;
       srh->type = ROUTING_HEADER_TYPE_SR;
       srh->segments_left = vec_len (sl) - 1;
       srh->last_entry = vec_len (sl) - 1;
       srh->length = ((sizeof (ip6_sr_header_t) + (vec_len (sl) * sizeof (ip6_address_t))) / 8) - 1;
-    //   srh->length = ((sizeof (ip6_sr_header_t) + (vec_len (sl) * sizeof (ip6_address_t)))) - 1;
-	  clib_warning("SRH_len = %u = (%u + %u) /8 - 1", srh->length, sizeof (ip6_sr_header_t), (vec_len (sl) * sizeof (ip6_address_t)));
       srh->flags = 0x00;
       srh->tag = 0x0000;
       addrp = srh->segments + vec_len (sl) - 1;
@@ -391,21 +383,20 @@ compute_rewrite_bsid (ip6_address_t * sl)
  * @param sl is a vector of IPv6 addresses composing the Segment List
  * @param weight is the weight of the SegmentList (for load-balancing purposes)
  * @param is_encap represents the mode (SRH insertion vs Encapsulation)
+ * @param ioam_trace_enabled whether insert ioam trace hop-by-hop extension or not
  *
  * @return pointer to the just created segment list
  */
 static inline ip6_sr_sl_t *
 create_sl (ip6_sr_policy_t * sr_policy, ip6_address_t * sl, u32 weight,
-	   u8 is_encap)
+	   u8 is_encap, u8 ioam_trace_enabled)
 {
-  ip6_hop_by_hop_ioam_main_t *hm = &ip6_hop_by_hop_ioam_main;
-  u8 *rewrite = hm->rewrite;
-  u32 rewrite_length = vec_len (rewrite); // 80 bytes
-  clib_warning("HOP BY HOP: %u", rewrite_length);
-
   ip6_sr_main_t *sm = &sr_main;
   ip6_sr_sl_t *segment_list;
   sr_policy_fn_registration_t *plugin = 0;
+
+  ip6_hop_by_hop_ioam_main_t *hm = &ip6_hop_by_hop_ioam_main;
+  u8 *ioam_hbh_trace_rewrite = hm->rewrite;
 
   pool_get (sm->sid_lists, segment_list);
   clib_memset (segment_list, 0, sizeof (*segment_list));
@@ -424,8 +415,7 @@ create_sl (ip6_sr_policy_t * sr_policy, ip6_address_t * sl, u32 weight,
 
   if (is_encap)
     {
-	  clib_warning("Creating rewrite_srv6");
-      segment_list->rewrite = compute_rewrite_encaps (sl, sr_policy->type, rewrite);
+      segment_list->rewrite = compute_rewrite_encaps (sl, sr_policy->type, ioam_hbh_trace_rewrite);
       segment_list->rewrite_bsid = segment_list->rewrite;
     }
   else
@@ -753,7 +743,7 @@ sr_policy_add (ip6_address_t *bsid, ip6_address_t *segments, u32 weight,
 	     NULL);
 
   /* Create a segment list and add the index to the SR policy */
-  create_sl (sr_policy, segments, weight, is_encap);
+  create_sl (sr_policy, segments, weight, is_encap, ioam_trace_enabled);
 
   /* If FIB doesnt exist, create them */
   if (sm->fib_table_ip6 == (u32) ~ 0)
@@ -917,7 +907,7 @@ sr_policy_mod (ip6_address_t * bsid, u32 index, u32 fib_table,
     {
       /* Create the new SL */
       segment_list =
-	create_sl (sr_policy, segments, weight, sr_policy->is_encap);
+	create_sl (sr_policy, segments, weight, sr_policy->is_encap, sr_policy->ioam_trace_enabled);
 
       /* Create a new LB DPO */
       if (sr_policy->type == SR_POLICY_TYPE_DEFAULT)
