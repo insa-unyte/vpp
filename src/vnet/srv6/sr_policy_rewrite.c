@@ -1074,7 +1074,7 @@ sr_policy_command_fn (vlib_main_t * vm, unformat_input_t * input,
 	u8 *rewrite = hm->rewrite;
 	u32 rewrite_length = vec_len (rewrite);
 	if (!is_trace_option_enabled() || rewrite_length == 0)
-	  return clib_error_return(0, "No IOAM trace option found. Set IOAM first with 'set ioam-trace profile' and 'set ioam rewrite'");
+	  return clib_error_return(0, "No IOAM trace option rewrite found. Set IOAM first with 'set ioam-trace profile' and 'set ioam rewrite'");
   }
 
   if (is_add)
@@ -1199,6 +1199,9 @@ show_sr_policies_command_fn (vlib_main_t * vm, unformat_input_t * input,
     vlib_cli_output (vm, "\tBehavior: %s",
 		     (sr_policy->is_encap ? "Encapsulation" :
 		      "SRH insertion"));
+	vlib_cli_output (vm, "\tIOAM trace hbh enabled: %s",
+		     (sr_policy->ioam_trace_enabled ? "Enabled" :
+		      "Disabled"));
     switch (sr_policy->type)
       {
       case SR_POLICY_TYPE_SPRAY:
@@ -1559,8 +1562,7 @@ sr_policy_rewrite_encaps (vlib_main_t * vm, vlib_node_runtime_t * node,
 	    pool_elt_at_index (sm->sid_lists,
 			       vnet_buffer (b0)->ip.adj_index[VLIB_TX]);
 	  clib_warning("SIZES: %u - %u", b0->current_data + VLIB_BUFFER_PRE_DATA_SIZE, vec_len (sl0->rewrite));
-	  ASSERT (b0->current_data + VLIB_BUFFER_PRE_DATA_SIZE >=
-		  vec_len (sl0->rewrite));
+	  ASSERT (b0->current_data + VLIB_BUFFER_PRE_DATA_SIZE >= vec_len (sl0->rewrite));
 
 	  ip0_encap = vlib_buffer_get_current (b0);
 
