@@ -127,6 +127,7 @@ class VppSRv6Policy(VppObject):
             is_spray=self.sr_type,
             fib_table=self.fib_table,
             sids={"num_sids": self.n_segments, "sids": self.segments},
+            ioam_trace_enabled=False
         )
         self._configured = True
 

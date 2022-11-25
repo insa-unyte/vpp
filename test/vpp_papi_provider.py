@@ -172,6 +172,7 @@ defaultmapping = {
     "sr_policy_add": {
         "weight": 1,
         "is_encap": 1,
+        "ioam_trace_enabled": 0,
     },
     "sw_interface_add_del_address": {
         "is_add": 1,

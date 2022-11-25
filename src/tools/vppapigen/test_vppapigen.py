@@ -225,6 +225,7 @@ autoreply define sr_policy_add
   bool is_spray;
   u32 fib_table;
   vl_api_srv6_sid_list_t sids;
+  bool ioam_trace_enabled;
 };
 """
 
@@ -251,6 +252,7 @@ autoreply define sr_policy_add
   bool is_spray;
   u32 fib_table;
   vl_api_srv6_sid_list_t sids;
+  bool ioam_trace_enabled;
 };
 """
         crc2 = get_crc(test_string, "sr_policy_add")

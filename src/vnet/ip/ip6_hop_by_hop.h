@@ -216,6 +216,12 @@ is_seqno_enabled (void)
   return (ip6_hop_by_hop_ioam_main.has_seqno_option);
 }
 
+static inline u8
+is_trace_option_enabled (void)
+{
+  return (ip6_hop_by_hop_ioam_main.has_trace_option);
+}
+
 int ip6_trace_profile_setup ();
 
 static inline u32

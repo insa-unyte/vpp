@@ -689,13 +689,14 @@ update_replicate (ip6_sr_policy_t * sr_policy)
  * @param behavior is the behavior of the SR policy. (default//spray)
  * @param fib_table is the VRF where to install the FIB entry for the BSID
  * @param is_encap (bool) whether SR policy should behave as Encap/SRH Insertion
+ * @param ioam_trace_enabled (bool) whether SR policy should add hop-by-hop IOAM trace extension
  *
  * @return 0 if correct, else error
  */
 int
 sr_policy_add (ip6_address_t *bsid, ip6_address_t *segments, u32 weight,
 	       u8 type, u32 fib_table, u8 is_encap, u16 plugin,
-	       void *ls_plugin_mem)
+	       void *ls_plugin_mem, u8 ioam_trace_enabled)
 {
   ip6_sr_main_t *sm = &sr_main;
   ip6_sr_policy_t *sr_policy = 0;
@@ -739,6 +740,7 @@ sr_policy_add (ip6_address_t *bsid, ip6_address_t *segments, u32 weight,
   sr_policy->type = type;
   sr_policy->fib_table = (fib_table != (u32) ~ 0 ? fib_table : 0);	//Is default FIB 0 ?
   sr_policy->is_encap = is_encap;
+  sr_policy->ioam_trace_enabled = ioam_trace_enabled;
 
   if (plugin)
     {
@@ -997,6 +999,7 @@ sr_policy_command_fn (vlib_main_t * vm, unformat_input_t * input,
   u8 type = SR_POLICY_TYPE_DEFAULT;
   u16 behavior = 0;
   void *ls_plugin_mem = 0;
+  char enabled_ioam = 0;
 
   while (unformat_check_input (input) != UNFORMAT_END_OF_INPUT)
     {
@@ -1063,6 +1066,8 @@ sr_policy_command_fn (vlib_main_t * vm, unformat_input_t * input,
 	      return clib_error_return (0, "Invalid behavior");
 	    }
 	}
+	  else if (unformat (input, "ioam-trace"))
+	enabled_ioam = 1;
       else
 	break;
     }
@@ -1072,6 +1077,15 @@ sr_policy_command_fn (vlib_main_t * vm, unformat_input_t * input,
 
   if (!policy_set)
     return clib_error_return (0, "No SR policy BSID or index specified");
+
+  if (enabled_ioam)
+  {
+	ip6_hop_by_hop_ioam_main_t *hm = &ip6_hop_by_hop_ioam_main;
+	u8 *rewrite = hm->rewrite;
+	u32 rewrite_length = vec_len (rewrite);
+	if (!is_trace_option_enabled() || rewrite_length == 0)
+	  return clib_error_return(0, "No IOAM trace option found. Set IOAM first with 'set ioam-trace profile' and 'set ioam rewrite'");
+  }
 
   if (is_add)
     {
@@ -1085,7 +1099,7 @@ sr_policy_command_fn (vlib_main_t * vm, unformat_input_t * input,
 	return clib_error_return (0, "No Segment List specified");
 
       rv = sr_policy_add (&bsid, segments, weight, type, fib_table, is_encap,
-			  behavior, ls_plugin_mem);
+			  behavior, ls_plugin_mem, enabled_ioam);
 
       vec_free (segments);
     }
@@ -1145,7 +1159,7 @@ sr_policy_command_fn (vlib_main_t * vm, unformat_input_t * input,
 VLIB_CLI_COMMAND (sr_policy_command, static) = {
   .path = "sr policy",
   .short_help = "sr policy [add||del||mod] [bsid 2001::1||index 5] "
-    "next A:: next B:: next C:: (weight 1) (fib-table 2) (encap|insert)",
+    "next A:: next B:: next C:: (weight 1) (fib-table 2) (encap|insert) (ioam-trace)",
   .long_help =
     "Manipulation of SR policies.\n"
     "A Segment Routing policy may contain several SID lists. Each SID list has\n"
