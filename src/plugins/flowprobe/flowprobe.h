@@ -26,6 +26,7 @@
 #include <vnet/ipfix-export/flow_report.h>
 #include <vnet/ipfix-export/flow_report_classify.h>
 #include <vppinfra/tw_timer_2t_1w_2048sl.h>
+#include <ioam/encap/ip6_ioam_trace.h>
 
 /* Default timers in seconds */
 #define FLOWPROBE_TIMER_ACTIVE   (15)
@@ -52,6 +53,7 @@ typedef enum __attribute__ ((__packed__))
   FLOW_VARIANT_L2_IP6,
   FLOW_VARIANT_SRH_BASICLIST_IP6,
   FLOW_VARIANT_SRH_LISTSECTION_IP6,
+  FLOW_VARIANT_SRH_LISTSECTION_DELAY_IP6,
   FLOW_N_VARIANTS,
 } flowprobe_variant_t;
 
@@ -124,6 +126,12 @@ typedef struct
   f64 last_exported;
   u32 passive_timer_handle;
   u16 srh_endpoint_behavior;
+  u64 path_delay_sum_ms;
+  u64 path_delay_sum_ns;
+  u32 path_delay_min_ms;
+  u32 path_delay_min_ns;
+  u32 path_delay_max_ms;
+  u32 path_delay_max_ns;
   union
   {
     struct
@@ -185,6 +193,7 @@ void flowprobe_flush_callback_ip6 (void);
 void flowprobe_flush_callback_l2 (void);
 void flowprobe_flush_callback_srh_basiclist_ip6(void);
 void flowprobe_flush_callback_srh_listsection_ip6(void);
+void flowprobe_flush_callback_srh_listsection_delay_ip6(void);
 u8 *format_flowprobe_entry (u8 * s, va_list * args);
 
 #endif

@@ -86,6 +86,16 @@ VNET_FEATURE_INIT (flowprobe_input_ip6_srh_listsection_multicast, static) = {
   .node_name = "flowprobe-input-srh-listsection-ip6",
   .runs_before = VNET_FEATURES ("ip6-mfib-forward-lookup"),
 };
+VNET_FEATURE_INIT (flowprobe_input_ip6_srh_listsection_delay_unicast, static) = {
+  .arc_name = "ip6-unicast",
+  .node_name = "flowprobe-input-srh-listsection-delay-ip6",
+  .runs_before = VNET_FEATURES ("ip6-lookup"),
+};
+VNET_FEATURE_INIT (flowprobe_input_ip6_srh_listsection_delay_multicast, static) = {
+  .arc_name = "ip6-multicast",
+  .node_name = "flowprobe-input-srh-listsection-delay-ip6",
+  .runs_before = VNET_FEATURES ("ip6-mfib-forward-lookup"),
+};
 VNET_FEATURE_INIT (flowprobe_input_l2, static) = {
   .arc_name = "device-input",
   .node_name = "flowprobe-input-l2",
@@ -164,8 +174,6 @@ flowprobe_template_ip6_fields (ipfix_field_specifier_t * f)
   return f;
 }
 
-
-
 static inline ipfix_field_specifier_t *
 flowprobe_template_ip6_srh_fields (ipfix_field_specifier_t * f, flowprobe_variant_t which)
 {
@@ -178,7 +186,7 @@ flowprobe_template_ip6_srh_fields (ipfix_field_specifier_t * f, flowprobe_varian
   f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
 				      srhActiveSegmentIPv6, 16);
   f++;
-  /* srh srhSegmentEndpointBehavior, TLV type 28, 2 octets */
+  /* srh srhSegmentEndpointBehavior, TLV type 510, 2 octets */
   f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
 				      srhSegmentEndpointBehavior, 2);
   f++;
@@ -221,6 +229,46 @@ flowprobe_template_ip6_srh_fields (ipfix_field_specifier_t * f, flowprobe_varian
   f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
 				      octetDeltaCount, 8);
   f++;
+  return f;
+}
+
+static inline ipfix_field_specifier_t *
+flowprobe_template_ip6_onpath_delay_fields (ipfix_field_specifier_t * f)
+{
+#define flowprobe_template_ip6_onpath_delay_field_count() 8
+  /* srh pathDelayMeanDeltaMicroseconds, TLV type 600, 2 octets */
+  f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
+				      pathDelayMeanDeltaMicroseconds, 2);
+  f++;
+  /* srh pathDelayMeanDeltaNanoseconds, TLV type 601, 4 octets */
+  f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
+				      pathDelayMeanDeltaNanoseconds, 4);
+  f++;
+  /* srh pathDelayMinDeltaMicroseconds, TLV type 602, 2 octets */
+  f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
+				      pathDelayMinDeltaMicroseconds, 2);
+  f++;
+  /* srh pathDelayMinDeltaNanoseconds, TLV type 603, 4 octets */
+  f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
+				      pathDelayMinDeltaNanoseconds, 4);
+  f++;
+  /* srh pathDelayMaxDeltaMicroseconds, TLV type 604, 2 octets */
+  f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
+				      pathDelayMaxDeltaMicroseconds, 2);
+  f++;
+  /* srh pathDelayMaxDeltaNanoseconds, TLV type 605, 4 octets */
+  f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
+				      pathDelayMaxDeltaNanoseconds, 4);
+  f++;
+  /* srh pathDelaySumDeltaMicroseconds, TLV type 606, 4 octets */
+  f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
+				      pathDelaySumDeltaMicroseconds, 4);
+  f++;
+  /* srh pathDelaySumDeltaNanoseconds, TLV type 607, 8 octets */
+  f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
+				      pathDelaySumDeltaNanoseconds, 8);
+  f++;
+
   return f;
 }
 
@@ -326,7 +374,7 @@ flowprobe_template_rewrite_inline (ipfix_exporter_t *exp, flow_report_t *fr,
   flow_report_stream_t *stream;
   flowprobe_main_t *fm = &flowprobe_main;
   flowprobe_record_t flags = fr->opaque.as_uword;
-  bool collect_ip4 = false, collect_ip6 = false, collect_srh = false;
+  bool collect_ip4 = false, collect_ip6 = false, collect_srh = false, collect_delay = false;
 
   stream = &exp->streams[fr->stream_index];
 
@@ -334,7 +382,8 @@ flowprobe_template_rewrite_inline (ipfix_exporter_t *exp, flow_report_t *fr,
     {
       collect_ip4 = which == FLOW_VARIANT_L2_IP4 || which == FLOW_VARIANT_IP4;
       collect_ip6 = which == FLOW_VARIANT_L2_IP6 || which == FLOW_VARIANT_IP6;
-      collect_srh = which == FLOW_VARIANT_SRH_LISTSECTION_IP6 || which == FLOW_VARIANT_SRH_BASICLIST_IP6;
+      collect_srh = which == FLOW_VARIANT_SRH_LISTSECTION_IP6 || which == FLOW_VARIANT_SRH_BASICLIST_IP6 || which == FLOW_VARIANT_SRH_LISTSECTION_DELAY_IP6;
+      collect_delay = which == FLOW_VARIANT_SRH_LISTSECTION_DELAY_IP6;
       if (which == FLOW_VARIANT_L2_IP4)
 	flags |= FLOW_RECORD_L2_IP4;
       if (which == FLOW_VARIANT_L2_IP6)
@@ -352,6 +401,8 @@ flowprobe_template_rewrite_inline (ipfix_exporter_t *exp, flow_report_t *fr,
     field_count += flowprobe_template_ip6_field_count ();
   if (collect_srh)
     field_count += flowprobe_template_ip6_srh_field_count ();
+  if (collect_srh && collect_delay)
+    field_count += flowprobe_template_ip6_onpath_delay_field_count ();
 
   if (flags & FLOW_RECORD_L4)
     field_count += flowprobe_template_l4_field_count ();
@@ -395,6 +446,8 @@ flowprobe_template_rewrite_inline (ipfix_exporter_t *exp, flow_report_t *fr,
     f = flowprobe_template_ip6_fields (f);
   if (collect_srh)
     f = flowprobe_template_ip6_srh_fields(f, which);
+  if (collect_srh && collect_delay)
+    f = flowprobe_template_ip6_onpath_delay_fields(f);
   if (flags & FLOW_RECORD_L4)
     f = flowprobe_template_l4_fields (f);
 
@@ -449,6 +502,16 @@ flowprobe_template_rewrite_srh_listsection_ip6 (ipfix_exporter_t *exp, flow_repo
 {
   return flowprobe_template_rewrite_inline (exp, fr, collector_port,
 					    FLOW_VARIANT_SRH_LISTSECTION_IP6);
+}
+
+static u8 *
+flowprobe_template_rewrite_srh_listsection_delay_ip6 (ipfix_exporter_t *exp, flow_report_t *fr,
+				u16 collector_port,
+				ipfix_report_element_t *elts, u32 n_elts,
+				u32 *stream_index)
+{
+  return flowprobe_template_rewrite_inline (exp, fr, collector_port,
+					    FLOW_VARIANT_SRH_LISTSECTION_DELAY_IP6);
 }
 
 static u8 *
@@ -534,6 +597,15 @@ flowprobe_data_callback_srh_listsection_ip6 (flow_report_main_t *frm, ipfix_expo
 			     u32 node_index)
 {
   flowprobe_flush_callback_srh_listsection_ip6 ();
+  return f;
+}
+
+vlib_frame_t *
+flowprobe_data_callback_srh_listsection_delay_ip6 (flow_report_main_t *frm, ipfix_exporter_t *exp,
+			     flow_report_t *fr, vlib_frame_t *f, u32 *to_next,
+			     u32 node_index)
+{
+  flowprobe_flush_callback_srh_listsection_delay_ip6 ();
   return f;
 }
 
@@ -729,6 +801,11 @@ flowprobe_interface_add_del_feature (flowprobe_main_t *fm, u32 sw_if_index,
 					 flowprobe_data_callback_srh_listsection_ip6,
 					 flowprobe_template_rewrite_srh_listsection_ip6,
 					 is_add, &template_id);
+      else if (which == FLOW_VARIANT_SRH_LISTSECTION_DELAY_IP6)
+  rv = flowprobe_template_add_del (1, UDP_DST_PORT_ipfix, flags,
+					 flowprobe_data_callback_srh_listsection_delay_ip6,
+					 flowprobe_template_rewrite_srh_listsection_delay_ip6,
+					 is_add, &template_id);
     }
   if (rv && rv != VNET_API_ERROR_VALUE_EXIST)
     {
@@ -769,6 +846,13 @@ flowprobe_interface_add_del_feature (flowprobe_main_t *fm, u32 sw_if_index,
         vnet_feature_enable_disable ("ip6-unicast", "flowprobe-input-srh-listsection-ip6",
                   sw_if_index, is_add, 0, 0);
         vnet_feature_enable_disable ("ip6-multicast", "flowprobe-input-srh-listsection-ip6",
+                  sw_if_index, is_add, 0, 0);
+      }
+      else if (which == FLOW_VARIANT_SRH_LISTSECTION_DELAY_IP6)
+      {
+        vnet_feature_enable_disable ("ip6-unicast", "flowprobe-input-srh-listsection-delay-ip6",
+                  sw_if_index, is_add, 0, 0);
+        vnet_feature_enable_disable ("ip6-multicast", "flowprobe-input-srh-listsection-delay-ip6",
                   sw_if_index, is_add, 0, 0);
       }
       else if (which == FLOW_VARIANT_L2)
@@ -846,7 +930,6 @@ void
 vl_api_flowprobe_interface_add_del_t_handler (
   vl_api_flowprobe_interface_add_del_t *mp)
 {
-  clib_warning("NEVER CALLED");
   flowprobe_main_t *fm = &flowprobe_main;
   vl_api_flowprobe_interface_add_del_reply_t *rmp;
   u32 sw_if_index;
@@ -1175,6 +1258,8 @@ format_flowprobe_feature (u8 * s, va_list * args)
     s = format (s, "srh-basiclist");
   else if (*which == FLOW_VARIANT_SRH_LISTSECTION_IP6)
     s = format (s, "srh-listsection");
+  else if (*which == FLOW_VARIANT_SRH_LISTSECTION_DELAY_IP6)
+    s = format(s, "srh-delay-listsection");
   else if (*which == FLOW_VARIANT_L2)
     s = format (s, "l2");
 
@@ -1277,6 +1362,8 @@ flowprobe_interface_add_del_feature_command_fn (vlib_main_t *vm,
   which = FLOW_VARIANT_SRH_BASICLIST_IP6;
       else if (unformat (input, "srh-listsection"))
   which = FLOW_VARIANT_SRH_LISTSECTION_IP6;
+      else if (unformat (input, "srh-delay-listsection"))
+	which = FLOW_VARIANT_SRH_LISTSECTION_DELAY_IP6;
       else if (unformat (input, "rx"))
 	direction = FLOW_DIRECTION_RX;
       else if (unformat (input, "tx"))

@@ -70,6 +70,8 @@ api_flowprobe_tx_interface_add_del (vat_main_t * vam)
 	which = FLOW_VARIANT_SRH_BASICLIST_IP6;
       else if (unformat (i, "srh-listsection"))
 	which = FLOW_VARIANT_SRH_LISTSECTION_IP6;
+      else if (unformat (i, "srh-delay-listsection"))
+	which = FLOW_VARIANT_SRH_LISTSECTION_DELAY_IP6;
       else if (unformat (i, "l2"))
 	which = FLOW_VARIANT_L2;
       else

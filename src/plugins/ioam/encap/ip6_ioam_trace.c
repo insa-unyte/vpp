@@ -394,7 +394,6 @@ ip6_hbh_ioam_trace_data_list_handler (vlib_buffer_t * b, ip6_header_t * ip, ip6_
       */
     elt_index = data_list_elts_left * fetch_trace_data_size (profile) / 4;
     elt = &trace->trace_hdr.data_list[elt_index];
-    clib_warning("Total number nodes: %u - elts: %u", profile->num_elts, data_list_elts_left);
     // START writing the telemtry info
     u32 trace_type = IOAM_GET_TRACETYPE(trace->trace_hdr.trace_type);
 
@@ -445,8 +444,6 @@ ip6_hbh_ioam_trace_data_list_handler (vlib_buffer_t * b, ip6_header_t * ip, ip6_
       /* Send least significant 32 bits */
       f64 time_sub_f64 = (f64) (((f64) hm->unix_time_0) + (vlib_time_now (hm->vlib_main) - hm->vlib_time_0));
       time_u64.as_u64 = time_sub_f64 * trace_tsp_mul[profile->ts_format]; // timestamp_seconds * 1000 (if ms)
-      clib_warning("ts format2: %llu", time_u64.as_u64);
-      clib_warning("ts format2: %llu %llu", time_u64.as_u32[0], time_u64.as_u32[1]);
       if(!time_u64.as_u32[0])
       {
         time_u64.as_u32[0] = IOAM_EMPTY_FIELD_U32;
