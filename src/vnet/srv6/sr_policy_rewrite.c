@@ -1363,8 +1363,8 @@ encaps_processing_v6 (vlib_node_runtime_t *node, vlib_buffer_t *b0,
     (flow_label & 0x0000ffff));
   if (policy_type == SR_POLICY_TYPE_TEF)
     srv6_tef_behavior (node, b0, ip0);
-	clib_warning("IP0: %U -> %U", format_ip6_address, &ip0->src_address, format_ip6_address, &ip0->dst_address);
-	clib_warning("IP0_encap: %U -> %U", format_ip6_address, &ip0_encap->src_address, format_ip6_address, &ip0_encap->dst_address);
+	// clib_warning("IP0: %U -> %U", format_ip6_address, &ip0->src_address, format_ip6_address, &ip0->dst_address);
+	// clib_warning("IP0_encap: %U -> %U", format_ip6_address, &ip0_encap->src_address, format_ip6_address, &ip0_encap->dst_address);
 }
 
 /**
@@ -1561,7 +1561,7 @@ sr_policy_rewrite_encaps (vlib_main_t * vm, vlib_node_runtime_t * node,
 	  sl0 =
 	    pool_elt_at_index (sm->sid_lists,
 			       vnet_buffer (b0)->ip.adj_index[VLIB_TX]);
-	  clib_warning("SIZES: %u - %u", b0->current_data + VLIB_BUFFER_PRE_DATA_SIZE, vec_len (sl0->rewrite));
+	//   clib_warning("SIZES: %u - %u", b0->current_data + VLIB_BUFFER_PRE_DATA_SIZE, vec_len (sl0->rewrite));
 	  ASSERT (b0->current_data + VLIB_BUFFER_PRE_DATA_SIZE >= vec_len (sl0->rewrite));
 
 	  ip0_encap = vlib_buffer_get_current (b0);

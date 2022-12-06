@@ -126,11 +126,8 @@ typedef struct
   f64 last_exported;
   u32 passive_timer_handle;
   u16 srh_endpoint_behavior;
-  u64 path_delay_sum_ms;
   u64 path_delay_sum_ns;
-  u32 path_delay_min_ms;
   u32 path_delay_min_ns;
-  u32 path_delay_max_ms;
   u32 path_delay_max_ns;
   union
   {

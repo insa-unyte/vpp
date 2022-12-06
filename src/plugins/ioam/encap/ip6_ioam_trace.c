@@ -441,14 +441,15 @@ ip6_hbh_ioam_trace_data_list_handler (vlib_buffer_t * b, ip6_header_t * ip, ip6_
     // time stamp in user defined ts-format
     if (trace_type & IOAM_BIT_TIMESTAMP_SUB_SEC)
     {
-      /* Send least significant 32 bits */
+      /* Send least significant 32 bits (only milliseconds[0-1e3], microseconds[0-1e6] or nanoseconds[0-1e9]) */
       f64 time_sub_f64 = (f64) (((f64) hm->unix_time_0) + (vlib_time_now (hm->vlib_main) - hm->vlib_time_0));
-      time_u64.as_u64 = time_sub_f64 * trace_tsp_mul[profile->ts_format]; // timestamp_seconds * 1000 (if ms)
-      if(!time_u64.as_u32[0])
+      u64 time_sub_u64 = (u64) (time_sub_f64 * trace_tsp_mul[profile->ts_format]);
+      u32 time_sub_u64_send = time_sub_u64 % ((u64) trace_tsp_mul[profile->ts_format]); // get only the s, ms, us or ns
+      if(!time_sub_u64_send)
       {
-        time_u64.as_u32[0] = IOAM_EMPTY_FIELD_U32;
+        time_sub_u64_send = IOAM_EMPTY_FIELD_U32;
       }
-      *elt = clib_host_to_net_u32 (time_u64.as_u32[0]);
+      *elt = clib_host_to_net_u32 (time_sub_u64_send);
       elt++;
     }
     // reports hop delay from ingress (uses timestamp plugin) to here, though

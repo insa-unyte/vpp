@@ -365,39 +365,39 @@ flowprobe_onpath_delay_ip6_add (vlib_buffer_t * to_b, flowprobe_entry_t * e, u16
 {
   u16 start = offset;
 
-  /* pathDelayMeanDeltaMicroseconds */ //TODO: microseconds instead of milliseconds!
-  u16 mean_delta_ms = clib_host_to_net_u16(e->path_delay_sum_ms / e->packetcount);
-  clib_memcpy_fast (to_b->data + offset, &mean_delta_ms, sizeof (u16));
-  offset += sizeof (u16);
+  /* pathDelayMeanDeltaMicroseconds */
+  u32 mean_delta_us = clib_host_to_net_u32((u32)(e->path_delay_sum_ns / e->packetcount / 1000));
+  clib_memcpy_fast (to_b->data + offset, &mean_delta_us, sizeof (u32));
+  offset += sizeof (u32);
   /* pathDelayMeanDeltaNanoseconds */
-  u16 mean_delta_ns = clib_host_to_net_u32(e->path_delay_sum_ns / e->packetcount);
+  u32 mean_delta_ns = clib_host_to_net_u32((u32)(e->path_delay_sum_ns / e->packetcount));
   clib_memcpy_fast (to_b->data + offset, &mean_delta_ns, sizeof (u32));
   offset += sizeof (u32);
 
   /* pathDelayMinDeltaMicroseconds */
-  u16 min_delta_ms = clib_host_to_net_u16(e->path_delay_min_ms);
-  clib_memcpy_fast (to_b->data + offset, &min_delta_ms, sizeof (u16));
-  offset += sizeof (u16);
+  u32 min_delta_us = clib_host_to_net_u32((u32)(e->path_delay_min_ns / 1000));
+  clib_memcpy_fast (to_b->data + offset, &min_delta_us, sizeof (u32));
+  offset += sizeof (u32);
   /* pathDelayMinDeltaNanoseconds */
-  u16 min_delta_ns = clib_host_to_net_u32(e->path_delay_min_ns);
+  u32 min_delta_ns = clib_host_to_net_u32((u32) e->path_delay_min_ns);
   clib_memcpy_fast (to_b->data + offset, &min_delta_ns, sizeof (u32));
   offset += sizeof (u32);
 
   /* pathDelayMaxDeltaMicroseconds */
-  u16 max_delta_ms = clib_host_to_net_u16(e->path_delay_max_ms);
-  clib_memcpy_fast (to_b->data + offset, &max_delta_ms, sizeof (u16));
-  offset += sizeof (u16);
+  u32 max_delta_us = clib_host_to_net_u32((u32)(e->path_delay_max_ns / 1000));
+  clib_memcpy_fast (to_b->data + offset, &max_delta_us, sizeof (u32));
+  offset += sizeof (u32);
   /* pathDelayMaxDeltaNanoseconds */
-  u32 max_delta_ns = clib_host_to_net_u32(e->path_delay_max_ns);
+  u32 max_delta_ns = clib_host_to_net_u32((u32) e->path_delay_max_ns);
   clib_memcpy_fast (to_b->data + offset, &max_delta_ns, sizeof (u32));
   offset += sizeof (u32);
 
   /* pathDelaySumDeltaMicroseconds */
-  u32 sum_delta_ms = clib_host_to_net_u32(e->path_delay_sum_ms);
-  clib_memcpy_fast (to_b->data + offset, &sum_delta_ms, sizeof (u32));
+  u32 sum_delta_us = clib_host_to_net_u32((u32)(e->path_delay_sum_ns / 1000));
+  clib_memcpy_fast (to_b->data + offset, &sum_delta_us, sizeof (u32));
   offset += sizeof (u32);
   /* pathDelaySumDeltaNanoseconds */
-  u32 sum_delta_ns = clib_host_to_net_u64(e->path_delay_sum_ns);
+  u64 sum_delta_ns = clib_host_to_net_u64(e->path_delay_sum_ns);
   clib_memcpy_fast (to_b->data + offset, &sum_delta_ns, sizeof (u64));
   offset += sizeof (u64);
 
@@ -540,14 +540,16 @@ add_to_flow_record_state (vlib_main_t *vm, vlib_node_runtime_t *node,
   u32 my_cpu_number = vm->thread_index;
   u16 octets = 0;
   u16 active_sid_behavior = 0;
-  i64 path_delay_ns = 0;
+
+  u32 path_delay_sec = 0;
+  i32 path_delay_ns = 0;
 
   flowprobe_record_t flags = fm->context[which].flags;
   bool collect_ip4 = false, collect_ip6 = false, collect_srh = false, collect_delay = false;
   ASSERT (b);
   ethernet_header_t *eth = ethernet_buffer_get_header (b);
   u16 ethertype = clib_net_to_host_u16 (eth->type);
-  flow_report_main_t *frm = &flow_report_main;
+  // flow_report_main_t *frm = &flow_report_main;
 
   u16 l2_hdr_sz = sizeof (ethernet_header_t);
   /* *INDENT-OFF* */
@@ -617,14 +619,12 @@ add_to_flow_record_state (vlib_main_t *vm, vlib_node_runtime_t *node,
       octets = clib_net_to_host_u16 (ip6->payload_length)
 	+ sizeof (ip6_header_t);
     }
-    // clib_warning("why? %u - %u", ethertype == ETHERNET_TYPE_IP6, ethertype);
     if (collect_srh && ethertype == ETHERNET_TYPE_IP6)
     {
       ip6 = (ip6_header_t *) (b->data + l2_hdr_sz);
       next_protocol = ip6->protocol;
       next_header = (u8 *) (ip6 + 1);
 
-      // clib_warning("next: proto %u", next_protocol);
       if (next_protocol == 0) { // hbh
         hbh = (ip6_hop_by_hop_header_t *) next_header;
         trace = (ioam_trace_option_t *) (hbh + 1);
@@ -632,7 +632,6 @@ add_to_flow_record_state (vlib_main_t *vm, vlib_node_runtime_t *node,
         next_header = ((u8 *) hbh) + ((hbh->length + 1) * 8 * sizeof(u8));
 
         if (collect_delay) {
-          time_u64_t cur_time_u64;
           u8 opt_len = trace->hdr.length;
           if (trace->hdr.ioam_type == 0) // preallocated trace option-type
           {
@@ -676,23 +675,21 @@ add_to_flow_record_state (vlib_main_t *vm, vlib_node_runtime_t *node,
             // clib_warning("ingress sw: %d, egress sw: %d", clib_net_to_host_u32(*ioam_data) >> 16, clib_net_to_host_u32(*ioam_data) & IOAM_EMPTY_FIELD_U16);
             ioam_data += 1;
             // clib_warning("TS: 0x%x | %llu", clib_net_to_host_u32(*ioam_data), clib_net_to_host_u32(*ioam_data));
+            u32 flow_start_sec = clib_net_to_host_u32(*ioam_data);
+            ioam_data += 1;
             u32 flow_start_fraction = clib_net_to_host_u32(*ioam_data);
-            // milliseconds = clib_net_to_host_u32(*ioam_data) * 1000;
-            
-            // ******* current time
-            f64 current_time = ((f64) frm->unix_time_0) + (vlib_time_now (vm) - frm->vlib_time_0);
-            cur_time_u64.as_u64 = current_time * 1e9; // TODO: multiply by trace_tsp_mul[profile->ts_format]
-            // clib_warning("1-> ts format current flowprobe: %llu ns", cur_time_u64.as_u64);
-            // clib_warning("2-> ts format current flowprobe: %llu,%llu s", timestamp.sec, timestamp.nsec);
-            // clib_warning("ts format2: %llu %llu", time_u64.as_u32[0], time_u64.as_u32[1]);
-            // ******* current time end
 
-            // first_ioam_time_u64.as_u32[1] = clib_net_to_host_u32(*ioam_data);
-            path_delay_ns = cur_time_u64.as_u32[0] - flow_start_fraction;
-            // clib_warning("comparing ns: %llu - %llu = %lld | %lld ms", cur_time_u64.as_u32[0], flow_start_fraction, path_delay_ns, path_delay_ns / 1000000);
+            path_delay_sec = timestamp.sec - flow_start_sec;
+            path_delay_ns = timestamp.nsec - flow_start_fraction;
+            // i32 path_2 = timestamp.nsec - flow_start_fraction;
+            // clib_warning("Comparing1: %lu - %lu = %lu", timestamp.sec, flow_start_sec, path_delay_sec);
+            // clib_warning("Comparing2: %lu - %lu = %d", timestamp.nsec, flow_start_fraction, path_delay_ns);
 
-            if (path_delay_ns < 0) // all VPP nodes don't have the same synced clock
-              path_delay_ns = 0;
+            // if (path_delay_ns < 0)
+            //   path_delay_ns = -path_delay_ns;
+            // clib_warning("delay1: %d ns", path_delay_ns);
+            path_delay_ns += path_delay_sec * 1000000000;
+            // clib_warning("delay2: %d ns", path_delay_ns);
           }
         }
       }
@@ -718,7 +715,7 @@ add_to_flow_record_state (vlib_main_t *vm, vlib_node_runtime_t *node,
           nb_segments = FLOW_SRH_MAX_SID_LIST;
 
         k.srh_segment_list_len = nb_segments;
-        clib_warning("srh_segment_list_len: %u", nb_segments);
+        // clib_warning("srh_segment_list_len: %u", nb_segments);
         clib_memcpy_fast (k.srh_segment_list, &sr0->segments, nb_segments * sizeof(ip6_address_t));
 
         // for (int i = 0; i < nb_segments; i++)
@@ -760,7 +757,7 @@ add_to_flow_record_state (vlib_main_t *vm, vlib_node_runtime_t *node,
                 active_sid_behavior = 19;
                 break;
             }
-            clib_warning("-->LocalSID : %U->%u | IANA: %u", format_ip6_address, &cur_sid->localsid, cur_sid->behavior, active_sid_behavior);
+            // clib_warning("-->LocalSID : %U->%u | IANA: %u", format_ip6_address, &cur_sid->localsid, cur_sid->behavior, active_sid_behavior);
             break;
           }
         }
@@ -768,7 +765,7 @@ add_to_flow_record_state (vlib_main_t *vm, vlib_node_runtime_t *node,
         if (next_protocol == 41)
         {
           ip6_header_t *client_ip6 = (ip6_header_t *) next_header;
-          clib_warning("client_IPv6: %U->%U", format_ip6_address, &client_ip6->src_address, format_ip6_address, &client_ip6->dst_address);
+          // clib_warning("client_IPv6: %U->%U", format_ip6_address, &client_ip6->src_address, format_ip6_address, &client_ip6->dst_address);
           // flow src & dst
           k.src_address.as_u64[0] = client_ip6->src_address.as_u64[0];
           k.src_address.as_u64[1] = client_ip6->src_address.as_u64[1];
@@ -776,8 +773,6 @@ add_to_flow_record_state (vlib_main_t *vm, vlib_node_runtime_t *node,
           k.dst_address.as_u64[1] = client_ip6->dst_address.as_u64[1];
         }
       }
-
-      clib_warning("");
 
       octets = clib_net_to_host_u16 (ip6->payload_length) + sizeof (ip6_header_t);
     }
@@ -866,20 +861,13 @@ add_to_flow_record_state (vlib_main_t *vm, vlib_node_runtime_t *node,
       e->flow_end = timestamp;
       e->prot.tcp.flags |= tcp_flags;
       e->srh_endpoint_behavior = active_sid_behavior;
-      e->path_delay_sum_ns += path_delay_ns;   // TODO: only use nanosecs
-      e->path_delay_sum_ms += (path_delay_ns / 1e3);
+      e->path_delay_sum_ns += path_delay_ns;
       if (path_delay_ns > e->path_delay_max_ns)
-      {
         e->path_delay_max_ns = path_delay_ns;
-        e->path_delay_max_ms = path_delay_ns / 1e3;
-      }
       if (path_delay_ns < e->path_delay_min_ns)
-      {
         e->path_delay_min_ns = path_delay_ns;
-        e->path_delay_min_ms = path_delay_ns / 1e3;
-      }
-      clib_warning("delay ns: [%llu, %llu] | %llu | %llu | %lu",e->path_delay_min_ns, e->path_delay_max_ns, e->path_delay_sum_ns, e->path_delay_sum_ns / e->packetcount, e->packetcount);
-      clib_warning("delay ms: [%llu, %llu] | %llu | %llu | %lu",e->path_delay_min_ms, e->path_delay_max_ms, e->path_delay_sum_ms, e->path_delay_sum_ms / e->packetcount, e->packetcount);
+      // clib_warning("delay ns: [%llu, %llu] | %llu | %llu | %lu",e->path_delay_min_ns, e->path_delay_max_ns, e->path_delay_sum_ns, e->path_delay_sum_ns / e->packetcount, e->packetcount);
+      // clib_warning("delay ms: [%llu, %llu] | %llu | %llu | %lu",e->path_delay_min_ms, e->path_delay_max_ms, e->path_delay_sum_ms, e->path_delay_sum_ms / e->packetcount, e->packetcount);
 
       if (fm->active_timer == 0 || (now > e->last_exported + fm->active_timer))
 	      flowprobe_export_entry (vm, e);
@@ -1088,14 +1076,13 @@ flowprobe_export_entry (vlib_main_t * vm, flowprobe_entry_t * e)
   if (flags & FLOW_RECORD_L4)
     offset += flowprobe_l4_add (b0, e, offset);
 
+  // clib_warning("delay ns: [%llu, %llu] | %llu | %llu | %lu",e->path_delay_min_ns, e->path_delay_max_ns, e->path_delay_sum_ns, e->path_delay_sum_ns / e->packetcount, e->packetcount);
+
   /* Reset per flow-export counters */
   e->packetcount = 0;
   e->octetcount = 0;
-  e->path_delay_max_ms = 0;
   e->path_delay_max_ns = 0;
-  e->path_delay_min_ms = -1;
-  e->path_delay_min_ns = -1;
-  e->path_delay_sum_ms = 0;
+  e->path_delay_min_ns = 0xFFFFFFFF;
   e->path_delay_sum_ns = 0;
   e->srh_endpoint_behavior = 0;
 
