@@ -645,7 +645,7 @@ add_to_flow_record_state (vlib_main_t *vm, vlib_node_runtime_t *node,
 
             // clib_warning("namespace_id: %u, node_data_list_len: %u", namespace_id, nb_nodes);
             // clib_warning("elts left: %u", clib_net_to_host_u16(trace->trace_hdr.node_len_flags_remaining_len) & IOAM_REMAIN_LEN_MASK);
-            clib_warning("nodelen: %u", node_len);
+            // clib_warning("nodelen: %u", node_len);
             
             // trace->trace_hdr.data_list
             u16 elts = 0;
