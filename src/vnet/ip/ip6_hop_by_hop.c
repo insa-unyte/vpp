@@ -268,7 +268,6 @@ VLIB_NODE_FN (ip6_add_hop_by_hop_node) (vlib_main_t * vm,
 
   if (outer_header_length > VLIB_BUFFER_PRE_DATA_SIZE)
   {
-    clib_warning("allocating");
     if (vlib_buffer_alloc (vm, new_bi, n_left_from) != n_left_from)
     {
       alloc_err++;
@@ -280,7 +279,6 @@ VLIB_NODE_FN (ip6_add_hop_by_hop_node) (vlib_main_t * vm,
   while (n_left_from > 0)
   {
     u32 n_left_to_next;
-    clib_warning("NEERR");
     vlib_get_next_frame (vm, node, next_index, to_next, n_left_to_next);
 
     while (n_left_from >= 4 && n_left_to_next >= 2)
@@ -554,7 +552,6 @@ VLIB_NODE_FN (ip6_add_hop_by_hop_node) (vlib_main_t * vm,
 
     while (n_left_from > 0 && n_left_to_next > 0)
 	  {
-      clib_warning("HEREEE");
       u32 bi0;
       vlib_buffer_t *b0;
       u32 next0;
@@ -591,7 +588,6 @@ VLIB_NODE_FN (ip6_add_hop_by_hop_node) (vlib_main_t * vm,
       {
         if (outer_header_length > VLIB_BUFFER_PRE_DATA_SIZE)
         {
-          clib_warning("adding");
           /* Adapt new buffer's metadata */
           bufs[0]->flags |= VLIB_BUFFER_NEXT_PRESENT;
           bufs[0]->flags |= VLIB_BUFFER_TOTAL_LENGTH_VALID;
@@ -605,8 +601,6 @@ VLIB_NODE_FN (ip6_add_hop_by_hop_node) (vlib_main_t * vm,
         else
         {
           vlib_buffer_advance (b0, -(word) outer_header_length);
-          clib_warning("HERE? %u - %u", outer_header_length, VLIB_BUFFER_PRE_DATA_SIZE);
-          clib_warning("HERE2? %d - %d", (signed) b0->current_data, -VLIB_BUFFER_PRE_DATA_SIZE);
           new_ip0 = vlib_buffer_get_current (b0);
         }
 
@@ -633,7 +627,6 @@ VLIB_NODE_FN (ip6_add_hop_by_hop_node) (vlib_main_t * vm,
       {
         if (outer_header_length > VLIB_BUFFER_PRE_DATA_SIZE)
         {
-          clib_warning("Not here!");
           /* Adapt new buffer's metadata */
           bufs[0]->flags |= VNET_BUFFER_F_LOCALLY_ORIGINATED;
           bufs[0]->flags |= VLIB_BUFFER_NEXT_PRESENT;
@@ -648,7 +641,6 @@ VLIB_NODE_FN (ip6_add_hop_by_hop_node) (vlib_main_t * vm,
         else
         {
           vlib_buffer_advance (b0, -(word) rewrite_length);
-          clib_warning("HERE·== ?");
           new_ip0 = vlib_buffer_get_current (b0);
         }
 
