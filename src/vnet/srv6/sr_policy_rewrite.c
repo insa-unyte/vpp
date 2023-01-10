@@ -52,6 +52,7 @@
 #include <vppinfra/error.h>
 #include <vppinfra/elog.h>
 #include <vnet/ip/ip6_hop_by_hop.h>
+#include <vnet/interface_output.h>
 
 /**
  * @brief SR policy rewrite trace
@@ -261,17 +262,17 @@ compute_rewrite_encaps (ip6_address_t *sl, u8 type, u8 *ioam_hbh_trace_rewrite)
     }
   else if (vec_len (sl) > 1)
     {
-	  if (vec_len(ioam_hbh_trace_rewrite) > 0)
-	  {
-      	iph->protocol = IP_PROTOCOL_IP6_HOP_BY_HOP_OPTIONS;
-		hbh = (ip6_hop_by_hop_header_t *) (iph + 1);
-		clib_memcpy_fast (hbh, ioam_hbh_trace_rewrite, vec_len(ioam_hbh_trace_rewrite));
-		hbh->protocol = IP_PROTOCOL_IPV6_ROUTE;
-	  	srh = (ip6_sr_header_t *) ((u8 *)hbh + vec_len(ioam_hbh_trace_rewrite));
-	  } else {
-      	iph->protocol = IP_PROTOCOL_IPV6_ROUTE;
-	  	srh = (ip6_sr_header_t *) (iph + 1);
-	  }
+      if (vec_len(ioam_hbh_trace_rewrite) > 0)
+      {
+        iph->protocol = IP_PROTOCOL_IP6_HOP_BY_HOP_OPTIONS;
+        hbh = (ip6_hop_by_hop_header_t *) (iph + 1);
+        clib_memcpy_fast (hbh, ioam_hbh_trace_rewrite, vec_len(ioam_hbh_trace_rewrite));
+        hbh->protocol = IP_PROTOCOL_IPV6_ROUTE;
+        srh = (ip6_sr_header_t *) ((u8 *)hbh + vec_len(ioam_hbh_trace_rewrite));
+      } else {
+        iph->protocol = IP_PROTOCOL_IPV6_ROUTE;
+        srh = (ip6_sr_header_t *) (iph + 1);
+      }
 
       srh->protocol = IP_PROTOCOL_IPV6;
       srh->type = ROUTING_HEADER_TYPE_SR;
@@ -394,9 +395,11 @@ create_sl (ip6_sr_policy_t * sr_policy, ip6_address_t * sl, u32 weight,
   ip6_sr_main_t *sm = &sr_main;
   ip6_sr_sl_t *segment_list;
   sr_policy_fn_registration_t *plugin = 0;
+  u8 *ioam_hbh_trace_rewrite = NULL;
 
   ip6_hop_by_hop_ioam_main_t *hm = &ip6_hop_by_hop_ioam_main;
-  u8 *ioam_hbh_trace_rewrite = hm->rewrite;
+  if (ioam_trace_enabled)
+    ioam_hbh_trace_rewrite = hm->rewrite;
 
   pool_get (sm->sid_lists, segment_list);
   clib_memset (segment_list, 0, sizeof (*segment_list));
@@ -1376,11 +1379,29 @@ sr_policy_rewrite_encaps (vlib_main_t * vm, vlib_node_runtime_t * node,
 {
   ip6_sr_main_t *sm = &sr_main;
   u32 n_left_from, next_index, *from, *to_next;
+  u32 rewrite_length = vec_len(sm->sid_lists->rewrite); // only for the first policy
+  u32 outer_header_length = rewrite_length;
+
+  clib_warning("LENGH ¿? %lu | %lu > %d", rewrite_length, VLIB_BUFFER_PRE_DATA_SIZE, outer_header_length);
+  u32 new_bi[VLIB_FRAME_SIZE], *b;
+  vlib_buffer_t *new_bufs[VLIB_FRAME_SIZE], **bufs;
+  bufs = new_bufs;
+  b = new_bi;
+  u32 alloc_err = 0;
 
   from = vlib_frame_vector_args (from_frame);
   n_left_from = from_frame->n_vectors;
-
   next_index = node->cached_next_index;
+
+  if (outer_header_length > VLIB_BUFFER_PRE_DATA_SIZE)
+  {
+    if (vlib_buffer_alloc (vm, new_bi, n_left_from) != n_left_from)
+    {
+      alloc_err++;
+      return from_frame->n_vectors;
+    }
+    vlib_get_buffers (vm, new_bi, new_bufs, n_left_from);
+  }
 
   int encap_pkts = 0, bsid_pkts = 0;
 
@@ -1545,51 +1566,87 @@ sr_policy_rewrite_encaps (vlib_main_t * vm, vlib_node_runtime_t * node,
       while (n_left_from > 0 && n_left_to_next > 0)
 	{
 	  u32 bi0;
-	  vlib_buffer_t *b0;
-	  ip6_header_t *ip0 = 0, *ip0_encap = 0;
+	  vlib_buffer_t *b0, *b0_new = NULL;
+	  ip6_header_t *ip0 = 0, *ip0_encap = 0; // ip0=outer ; ip0_encap=inner
 	  ip6_sr_sl_t *sl0;
 	  u32 next0 = SR_POLICY_REWRITE_NEXT_IP6_LOOKUP;
 
 	  bi0 = from[0];
-	  to_next[0] = bi0;
+    if (outer_header_length <= VLIB_BUFFER_PRE_DATA_SIZE)
+      b[0] = bi0;
+	  to_next[0] = b[0];
 	  from += 1;
 	  to_next += 1;
 	  n_left_from -= 1;
 	  n_left_to_next -= 1;
 	  b0 = vlib_get_buffer (vm, bi0);
 
-	  sl0 =
-	    pool_elt_at_index (sm->sid_lists,
+	  sl0 = pool_elt_at_index (sm->sid_lists,
 			       vnet_buffer (b0)->ip.adj_index[VLIB_TX]);
-	//   clib_warning("SIZES: %u - %u", b0->current_data + VLIB_BUFFER_PRE_DATA_SIZE, vec_len (sl0->rewrite));
-	  ASSERT (b0->current_data + VLIB_BUFFER_PRE_DATA_SIZE >= vec_len (sl0->rewrite));
 
-	  ip0_encap = vlib_buffer_get_current (b0);
+	  u32 outer_header_length = vec_len (sl0->rewrite);
+    ip0_encap = vlib_buffer_get_current (b0);
 
-	  clib_memcpy_fast (((u8 *) ip0_encap) - vec_len (sl0->rewrite),
-			    sl0->rewrite, vec_len (sl0->rewrite));
-	  vlib_buffer_advance (b0, -(word) vec_len (sl0->rewrite));
+    if (outer_header_length > VLIB_BUFFER_PRE_DATA_SIZE)
+      ip0 = vlib_buffer_get_current (bufs[0]);
+    else {
+      ASSERT (b0->current_data + VLIB_BUFFER_PRE_DATA_SIZE >= vec_len (sl0->rewrite));
+  	  vlib_buffer_advance (b0, -(word) vec_len (sl0->rewrite));
+      ip0 = vlib_buffer_get_current (b0);
+    }
 
-	  ip0 = vlib_buffer_get_current (b0);
+    if (b0->flags & VNET_BUFFER_F_OFFLOAD)
+    {
+      vnet_calc_checksums_inline (vm, b0, 0, 1);
+      b0->flags &= ~VNET_BUFFER_F_OFFLOAD;
+    }
+
+    if (PREDICT_TRUE(!(b0->flags & VNET_BUFFER_F_LOCALLY_ORIGINATED)))
+    {
+      if (outer_header_length > VLIB_BUFFER_PRE_DATA_SIZE)
+      {
+        /* Adapt new buffer's metadata */
+        bufs[0]->flags |= VLIB_BUFFER_NEXT_PRESENT;
+        bufs[0]->flags |= VLIB_BUFFER_TOTAL_LENGTH_VALID;
+        bufs[0]->current_length = outer_header_length;
+        bufs[0]->total_length_not_including_first_buffer = b0->current_length;
+        bufs[0]->next_buffer = bi0;
+        bufs[0]->trace_handle = b0->trace_handle;
+        clib_memcpy_fast (bufs[0]->opaque, b0->opaque, sizeof (b0->opaque));
+        clib_memcpy_fast (bufs[0]->opaque2, b0->opaque2, sizeof (b0->opaque2));
+      }
+    }
+
+    /* Copy ip header to new area */
+    clib_memcpy_fast (ip0, sl0->rewrite, vec_len (sl0->rewrite));
 
 	  encaps_processing_v6 (node, b0, ip0, ip0_encap, sl0->policy_type);
 
-	  vnet_buffer (b0)->sw_if_index[VLIB_TX] = sl0->egress_fib_table;
+    if (outer_header_length > VLIB_BUFFER_PRE_DATA_SIZE)
+	    vnet_buffer (bufs[0])->sw_if_index[VLIB_TX] = sl0->egress_fib_table;
+    else
+	    vnet_buffer (b0)->sw_if_index[VLIB_TX] = sl0->egress_fib_table;
 
 	  if (PREDICT_FALSE (node->flags & VLIB_NODE_FLAG_TRACE) &&
-	      PREDICT_FALSE (b0->flags & VLIB_BUFFER_IS_TRACED))
-	    {
-	      sr_policy_rewrite_trace_t *tr =
-		vlib_add_trace (vm, node, b0, sizeof (*tr));
-	      clib_memcpy_fast (tr->src.as_u8, ip0->src_address.as_u8,
-				sizeof (tr->src.as_u8));
-	      clib_memcpy_fast (tr->dst.as_u8, ip0->dst_address.as_u8,
-				sizeof (tr->dst.as_u8));
-	    }
+	      PREDICT_FALSE (b0_new->flags & VLIB_BUFFER_IS_TRACED))
+    {
+      sr_policy_rewrite_trace_t *tr;
+      if (outer_header_length > VLIB_BUFFER_PRE_DATA_SIZE)
+	      tr = vlib_add_trace (vm, node, bufs[0], sizeof (*tr));
+      else
+	      tr = vlib_add_trace (vm, node, b0, sizeof (*tr));
+
+      clib_memcpy_fast (tr->src.as_u8, ip0->src_address.as_u8,
+      sizeof (tr->src.as_u8));
+      clib_memcpy_fast (tr->dst.as_u8, ip0->dst_address.as_u8,
+      sizeof (tr->dst.as_u8));
+    }
 
 	  encap_pkts++;
 	  vlib_validate_buffer_enqueue_x1 (vm, node, next_index, to_next,
-					   n_left_to_next, bi0, next0);
+					   n_left_to_next, b[0], next0);
+    b += 1;
+    bufs += 1;
 	}
 
       vlib_put_next_frame (vm, node, next_index, n_left_to_next);

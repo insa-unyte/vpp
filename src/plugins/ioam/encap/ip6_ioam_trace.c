@@ -262,7 +262,7 @@ ip6_hop_by_hop_ioam_trace_rewrite_handler (u8 * rewrite_string, u8 * rewrite_siz
   {
     return -1;
   }
-
+  // TODO: add DEX option type here
   trace_option_elts = profile->num_elts;
   trace_data_size = fetch_trace_data_size (profile);
   clib_warning("trace_data_size %u * %u = %u", trace_option_elts, trace_data_size, trace_option_elts * trace_data_size);
