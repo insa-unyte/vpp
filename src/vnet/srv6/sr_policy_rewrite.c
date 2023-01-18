@@ -1384,19 +1384,37 @@ sr_policy_rewrite_encaps (vlib_main_t * vm, vlib_node_runtime_t * node,
   vlib_buffer_t *new_bufs[VLIB_FRAME_SIZE], **bufs;
   u32 alloc_err = 0, encap_pkts = 0, bsid_pkts = 0;
 
+  u32 *sl_index;
+  ip6_sr_sl_t *segment_list = 0;
+  ip6_sr_policy_t *sr_policy = 0;
+  u16 max_rewrite_len = 0;
+  // compute the max rewrite length for all policies
+  pool_foreach (sr_policy, sm->sr_policies)
+  {
+    vec_foreach (sl_index, sr_policy->segments_lists)
+    {
+      segment_list = pool_elt_at_index (sm->sid_lists, *sl_index);
+      if (max_rewrite_len < vec_len(segment_list->rewrite))
+        max_rewrite_len = vec_len(segment_list->rewrite);
+    }
+  }
+
   bufs = new_bufs;
   b = new_bi;
   from = vlib_frame_vector_args (from_frame);
   n_left_from = from_frame->n_vectors;
   next_index = node->cached_next_index;
 
-  // always allocating one frame for each packet just in case
-  if (vlib_buffer_alloc (vm, new_bi, n_left_from) != n_left_from)
+  // alloc buffer if there is one policy bigger than the predata size
+  if (max_rewrite_len > VLIB_BUFFER_PRE_DATA_SIZE)
   {
-    alloc_err++;
-    return from_frame->n_vectors;
+    if (vlib_buffer_alloc (vm, new_bi, n_left_from) != n_left_from)
+    {
+      alloc_err++;
+      return from_frame->n_vectors;
+    }
+    vlib_get_buffers (vm, new_bi, new_bufs, n_left_from);
   }
-  vlib_get_buffers (vm, new_bi, new_bufs, n_left_from);
 
   while (n_left_from > 0)
     {
