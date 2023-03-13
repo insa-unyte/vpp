@@ -235,38 +235,22 @@ flowprobe_template_ip6_srh_fields (ipfix_field_specifier_t * f, flowprobe_varian
 static inline ipfix_field_specifier_t *
 flowprobe_template_ip6_onpath_delay_fields (ipfix_field_specifier_t * f)
 {
-#define flowprobe_template_ip6_onpath_delay_field_count() 8
+#define flowprobe_template_ip6_onpath_delay_field_count() 4
   /* srh pathDelayMeanDeltaMicroseconds, TLV type 600, 4 octets */
   f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
 				      pathDelayMeanDeltaMicroseconds, 4);
   f++;
-  /* srh pathDelayMeanDeltaNanoseconds, TLV type 601, 4 octets */
-  f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
-				      pathDelayMeanDeltaNanoseconds, 4);
-  f++;
-  /* srh pathDelayMinDeltaMicroseconds, TLV type 602, 4 octets */
+  /* srh pathDelayMinDeltaMicroseconds, TLV type 601, 4 octets */
   f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
 				      pathDelayMinDeltaMicroseconds, 4);
   f++;
-  /* srh pathDelayMinDeltaNanoseconds, TLV type 603, 4 octets */
-  f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
-				      pathDelayMinDeltaNanoseconds, 4);
-  f++;
-  /* srh pathDelayMaxDeltaMicroseconds, TLV type 604, 4 octets */
+  /* srh pathDelayMaxDeltaMicroseconds, TLV type 602, 4 octets */
   f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
 				      pathDelayMaxDeltaMicroseconds, 4);
   f++;
-  /* srh pathDelayMaxDeltaNanoseconds, TLV type 605, 4 octets */
+  /* srh pathDelaySumDeltaMicroseconds, TLV type 603, 8 octets */
   f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
-				      pathDelayMaxDeltaNanoseconds, 4);
-  f++;
-  /* srh pathDelaySumDeltaMicroseconds, TLV type 606, 4 octets */
-  f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
-				      pathDelaySumDeltaMicroseconds, 4);
-  f++;
-  /* srh pathDelaySumDeltaNanoseconds, TLV type 607, 8 octets */
-  f->e_id_length = ipfix_e_id_length (0 /* enterprise */ ,
-				      pathDelaySumDeltaNanoseconds, 8);
+				      pathDelaySumDeltaMicroseconds, 8);
   f++;
 
   return f;

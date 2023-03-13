@@ -369,36 +369,20 @@ flowprobe_onpath_delay_ip6_add (vlib_buffer_t * to_b, flowprobe_entry_t * e, u16
   u32 mean_delta_us = clib_host_to_net_u32((u32)(e->path_delay_sum_ns / e->packetcount / 1000));
   clib_memcpy_fast (to_b->data + offset, &mean_delta_us, sizeof (u32));
   offset += sizeof (u32);
-  /* pathDelayMeanDeltaNanoseconds */
-  u32 mean_delta_ns = clib_host_to_net_u32((u32)(e->path_delay_sum_ns / e->packetcount));
-  clib_memcpy_fast (to_b->data + offset, &mean_delta_ns, sizeof (u32));
-  offset += sizeof (u32);
 
   /* pathDelayMinDeltaMicroseconds */
   u32 min_delta_us = clib_host_to_net_u32((u32)(e->path_delay_min_ns / 1000));
   clib_memcpy_fast (to_b->data + offset, &min_delta_us, sizeof (u32));
-  offset += sizeof (u32);
-  /* pathDelayMinDeltaNanoseconds */
-  u32 min_delta_ns = clib_host_to_net_u32((u32) e->path_delay_min_ns);
-  clib_memcpy_fast (to_b->data + offset, &min_delta_ns, sizeof (u32));
   offset += sizeof (u32);
 
   /* pathDelayMaxDeltaMicroseconds */
   u32 max_delta_us = clib_host_to_net_u32((u32)(e->path_delay_max_ns / 1000));
   clib_memcpy_fast (to_b->data + offset, &max_delta_us, sizeof (u32));
   offset += sizeof (u32);
-  /* pathDelayMaxDeltaNanoseconds */
-  u32 max_delta_ns = clib_host_to_net_u32((u32) e->path_delay_max_ns);
-  clib_memcpy_fast (to_b->data + offset, &max_delta_ns, sizeof (u32));
-  offset += sizeof (u32);
 
   /* pathDelaySumDeltaMicroseconds */
-  u32 sum_delta_us = clib_host_to_net_u32((u32)(e->path_delay_sum_ns / 1000));
-  clib_memcpy_fast (to_b->data + offset, &sum_delta_us, sizeof (u32));
-  offset += sizeof (u32);
-  /* pathDelaySumDeltaNanoseconds */
-  u64 sum_delta_ns = clib_host_to_net_u64(e->path_delay_sum_ns);
-  clib_memcpy_fast (to_b->data + offset, &sum_delta_ns, sizeof (u64));
+  u64 sum_delta_us = clib_host_to_net_u64((u64)(e->path_delay_sum_ns / 1000));
+  clib_memcpy_fast (to_b->data + offset, &sum_delta_us, sizeof (u64));
   offset += sizeof (u64);
 
   return offset - start;
